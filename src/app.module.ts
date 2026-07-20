@@ -11,6 +11,7 @@ import { ContentModule } from './content/content.module';
 import { HealthModule } from './health/health.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { SocialModule } from './social/social.module';
 import { WorldModule } from './world/world.module';
 
 @Module({
@@ -29,6 +30,7 @@ import { WorldModule } from './world/world.module';
     InventoryModule,
     CombatModule,
     WorldModule,
+    SocialModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
