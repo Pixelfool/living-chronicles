@@ -31,6 +31,9 @@ describe('Combat (e2e)', () => {
   });
 
   afterAll(async () => {
+    await prisma.itemInstance.deleteMany({
+      where: { character: { user: { email: { contains: 'e2e-combat' } } } },
+    });
     await prisma.character.deleteMany({
       where: { user: { email: { contains: 'e2e-combat' } } },
     });
