@@ -5,7 +5,10 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ContentService } from '../content/content.service';
-import { InventoryService, ItemAcquiredEvent } from '../inventory/inventory.service';
+import {
+  InventoryService,
+  ItemAcquiredEvent,
+} from '../inventory/inventory.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { describeBattle, resolveFight } from './combat-resolver';
 import { rollLoot } from './loot';

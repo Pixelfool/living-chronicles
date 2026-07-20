@@ -6,18 +6,12 @@ describe('rollLoot', () => {
   });
 
   it('returns the item when the roll beats dropChance', () => {
-    const result = rollLoot(
-      [{ itemId: 'sword', dropChance: 0.5 }],
-      () => 0.1,
-    );
+    const result = rollLoot([{ itemId: 'sword', dropChance: 0.5 }], () => 0.1);
     expect(result).toBe('sword');
   });
 
   it('returns null when the roll does not beat dropChance', () => {
-    const result = rollLoot(
-      [{ itemId: 'sword', dropChance: 0.5 }],
-      () => 0.9,
-    );
+    const result = rollLoot([{ itemId: 'sword', dropChance: 0.5 }], () => 0.9);
     expect(result).toBeNull();
   });
 

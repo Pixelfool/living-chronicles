@@ -12,7 +12,10 @@ import {
 } from '../combat/combat.service';
 import { rollLoot } from '../combat/loot';
 import { ContentService } from '../content/content.service';
-import { InventoryService, ItemAcquiredEvent } from '../inventory/inventory.service';
+import {
+  InventoryService,
+  ItemAcquiredEvent,
+} from '../inventory/inventory.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface PlayerEnteredLocationEvent {
@@ -94,8 +97,12 @@ export class WorldService {
       const monster = this.content.findMonster(monsterId);
       if (monster) {
         const bonuses = await this.inventory.getEquipmentBonuses(character.id);
-        const { outcome, xpGained, xpResult, newHp: hpAfterFight } =
-          resolveFight({ ...character, ...bonuses }, monster);
+        const {
+          outcome,
+          xpGained,
+          xpResult,
+          newHp: hpAfterFight,
+        } = resolveFight({ ...character, ...bonuses }, monster);
         newHp = hpAfterFight;
         newMaxHp = xpResult.maxHp;
         newLevel = xpResult.level;

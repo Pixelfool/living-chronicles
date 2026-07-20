@@ -97,7 +97,10 @@ export class InventoryService {
     return { attackBonus, defenseBonus };
   }
 
-  async equip(userId: string, itemInstanceId: string): Promise<InventoryEntry[]> {
+  async equip(
+    userId: string,
+    itemInstanceId: string,
+  ): Promise<InventoryEntry[]> {
     const character = await this.getOwnCharacter(userId);
 
     const instance = await this.prisma.itemInstance.findUnique({
@@ -146,7 +149,10 @@ export class InventoryService {
     return this.listForCharacter(userId);
   }
 
-  async unequip(userId: string, itemInstanceId: string): Promise<InventoryEntry[]> {
+  async unequip(
+    userId: string,
+    itemInstanceId: string,
+  ): Promise<InventoryEntry[]> {
     const character = await this.getOwnCharacter(userId);
 
     const instance = await this.prisma.itemInstance.findUnique({

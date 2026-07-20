@@ -32,7 +32,8 @@ export function resolveBattle(
   rng: () => number = Math.random,
 ): BattleOutcome {
   const playerAttack = player.body * 2 + (player.attackBonus ?? 0);
-  const playerDefense = Math.floor(player.body / 2) + (player.defenseBonus ?? 0);
+  const playerDefense =
+    Math.floor(player.body / 2) + (player.defenseBonus ?? 0);
   const rollD6 = () => Math.floor(rng() * 6) + 1;
 
   let playerHp = player.hp;

@@ -91,10 +91,11 @@ describe('Inventory (e2e)', () => {
       .post(`/inventory/${sword.id}/equip`)
       .set('x-csrf-token', csrfToken)
       .expect(201);
-    const afterFirstEquip = equipRes.body as { id: string; equipped: boolean }[];
-    expect(afterFirstEquip.find((e) => e.id === sword.id)?.equipped).toBe(
-      true,
-    );
+    const afterFirstEquip = equipRes.body as {
+      id: string;
+      equipped: boolean;
+    }[];
+    expect(afterFirstEquip.find((e) => e.id === sword.id)?.equipped).toBe(true);
 
     // Equipping the second WEAPON must atomically unequip the first -
     // only one item per slot.
@@ -106,9 +107,9 @@ describe('Inventory (e2e)', () => {
       id: string;
       equipped: boolean;
     }[];
-    expect(afterSecondEquip.find((e) => e.id === secondSword.id)?.equipped).toBe(
-      true,
-    );
+    expect(
+      afterSecondEquip.find((e) => e.id === secondSword.id)?.equipped,
+    ).toBe(true);
     expect(afterSecondEquip.find((e) => e.id === sword.id)?.equipped).toBe(
       false,
     );

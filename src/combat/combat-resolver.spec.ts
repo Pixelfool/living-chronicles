@@ -56,7 +56,9 @@ describe('resolveBattle', () => {
       { hp: 1000, attack: 0, defense: 0 },
       rng,
     );
-    expect(equipped.rounds[0].damage).toBeGreaterThan(unequipped.rounds[0].damage);
+    expect(equipped.rounds[0].damage).toBeGreaterThan(
+      unequipped.rounds[0].damage,
+    );
   });
 
   it('equipment defenseBonus reduces damage taken', () => {
