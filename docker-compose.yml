@@ -38,7 +38,7 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-living_chronicles}:${POSTGRES_PASSWORD:-living_chronicles}@postgres:5432/${POSTGRES_DB:-living_chronicles}
       REDIS_URL: redis://redis:6379
     ports:
-      - '3000:3000'
+      - '8100:3000'
     depends_on:
       postgres:
         condition: service_healthy
