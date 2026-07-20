@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Living Chronicles — Demo Console</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+  h1 { font-size: 1.4rem; margin-bottom: .25rem; }
+  h2 { font-size: 1.05rem; margin-top: 2rem; border-bottom: 1px solid #ccc; padding-bottom: .25rem; }
+  section { margin-bottom: 1.5rem; }
+  .row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin: .5rem 0; }
+  input, select, button { font: inherit; padding: .35rem .5rem; }
+  button { cursor: pointer; }
+  #status { padding: .5rem .75rem; background: #e3f2e3; border-radius: 4px; margin-bottom: 1rem; }
+  #status.loggedout { background: #fbe3e3; }
+  #sheet { background: #f7f7f7; border: 1px solid #ddd; border-radius: 4px; padding: .75rem; font-size: .9rem; }
+  #sheet dl { display: grid; grid-template-columns: auto 1fr; gap: .25rem 1rem; margin: 0; }
+  #sheet dt { font-weight: 600; }
+  #log { background: #111; color: #0f0; padding: .75rem; border-radius: 4px; max-height: 320px; overflow: auto; font-size: .8rem; white-space: pre-wrap; }
+  .hint { color: #666; font-size: .85rem; }
+</style>
+</head>
+<body>
+<h1>The Living Chronicles — Demo Console</h1>
+<p class="hint">
+  A bare-bones page that calls the real API directly. Not a game UI —
+  just a way to see the backend working. Every response is shown raw at
+  the bottom.
+</p>
+
+<div id="status" class="loggedout">Not logged in.</div>
+
+<section>
+  <h2>Account</h2>
+  <div class="row">
+    <input id="reg-email" type="email" placeholder="email" />
+    <input id="reg-username" type="text" placeholder="username" />
+    <input id="reg-password" type="password" placeholder="password (8+ chars)" />
+    <button onclick="doRegister()">Register</button>
+  </div>
+  <div class="row">
+    <input id="login-username" type="text" placeholder="username" />
+    <input id="login-password" type="password" placeholder="password" />
+    <button onclick="doLogin()">Log in</button>
+    <button onclick="doLogout()">Log out</button>
+    <button onclick="whoAmI()">Who am I?</button>
+  </div>
+</section>
+
+<section>
+  <h2>Character</h2>
+  <div class="row">
+    <input id="char-name" type="text" placeholder="character name" />
+    <select id="char-archetype">
+      <option value="DUELIST">Duelist (Body)</option>
+      <option value="SCHOLAR">Scholar (Mind)</option>
+      <option value="DIPLOMAT">Diplomat (Presence)</option>
+    </select>
+    <button onclick="createCharacter()">Create character</button>
+    <button onclick="viewCharacter()">Refresh character sheet</button>
+  </div>
+  <div id="sheet">No character loaded yet.</div>
+</section>
+
+<section>
+  <h2>World</h2>
+  <div class="row">
+    <button onclick="listCities()">List cities</button>
+    <button onclick="listRoutes()">List routes</button>
+    <select id="travel-dest"><option value="">(list cities first)</option></select>
+    <button onclick="travel()">Travel</button>
+  </div>
+</section>
+
+<section>
+  <h2>Combat</h2>
+  <div class="row">
+    <button onclick="listMonsters()">List monsters</button>
+    <select id="fight-monster"><option value="">(list monsters first)</option></select>
+    <button onclick="fight()">Fight</button>
+  </div>
+</section>
+
+<h2>Last response (raw)</h2>
+<div id="log">Nothing yet.</div>
+
+<script>
+function getCookie(name) {
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
+async function api(method, path, body) {
+  const headers = { 'Content-Type': 'application/json' };
+  const mutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+  if (mutating) {
+    const token = getCookie('lc.csrf');
+    if (token) headers['x-csrf-token'] = token;
+  }
+  const res = await fetch(path, {
+    method,
+    headers,
+    credentials: 'include',
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  let data = null;
+  try { data = await res.json(); } catch (e) { /* empty body */ }
+  logResponse(method, path, res.status, data);
+  return { status: res.status, data };
+}
+
+function logResponse(method, path, status, data) {
+  document.getElementById('log').textContent =
+    method + ' ' + path + ' -> ' + status + '\n\n' + JSON.stringify(data, null, 2);
+}
+
+function setStatus(text, loggedIn) {
+  const el = document.getElementById('status');
+  el.textContent = text;
+  el.className = loggedIn ? '' : 'loggedout';
+}
+
+async function doRegister() {
+  const email = document.getElementById('reg-email').value;
+  const username = document.getElementById('reg-username').value;
+  const password = document.getElementById('reg-password').value;
+  const { status, data } = await api('POST', '/auth/register', { email, username, password });
+  if (status === 201) setStatus('Logged in as ' + data.username + ' (just registered)', true);
+}
+
+async function doLogin() {
+  const username = document.getElementById('login-username').value;
+  const password = document.getElementById('login-password').value;
+  const { status, data } = await api('POST', '/auth/login', { username, password });
+  if (status === 200) setStatus('Logged in as ' + data.username, true);
+}
+
+async function doLogout() {
+  const { status } = await api('POST', '/auth/logout');
+  if (status === 200) {
+    setStatus('Not logged in.', false);
+    document.getElementById('sheet').textContent = 'No character loaded yet.';
+  }
+}
+
+async function whoAmI() {
+  const { status, data } = await api('GET', '/auth/me');
+  if (status === 200) setStatus('Logged in as ' + data.username, true);
+  else setStatus('Not logged in.', false);
+}
+
+function renderSheet(c) {
+  document.getElementById('sheet').innerHTML =
+    '<dl>' +
+    '<dt>Name</dt><dd>' + c.name + ' (' + c.archetype + ')</dd>' +
+    '<dt>Level</dt><dd>' + c.level + ' (xp ' + c.xp + ')</dd>' +
+    '<dt>HP</dt><dd>' + c.hp + ' / ' + c.maxHp + '</dd>' +
+    '<dt>Action Points</dt><dd>' + c.actionPoints + ' / ' + c.maxActionPoints + '</dd>' +
+    '<dt>Location</dt><dd>' + c.currentCityId + '</dd>' +
+    '<dt>Stats</dt><dd>Body ' + c.body + ' / Mind ' + c.mind + ' / Presence ' + c.presence + '</dd>' +
+    '</dl>';
+}
+
+async function createCharacter() {
+  const name = document.getElementById('char-name').value;
+  const archetype = document.getElementById('char-archetype').value;
+  const { status, data } = await api('POST', '/characters', { name, archetype });
+  if (status === 201) renderSheet(data);
+}
+
+async function viewCharacter() {
+  const { status, data } = await api('GET', '/characters/me');
+  if (status === 200) renderSheet(data);
+}
+
+async function listCities() {
+  const { status, data } = await api('GET', '/world/cities');
+  if (status === 200) {
+    document.getElementById('travel-dest').innerHTML =
+      data.map(function (c) { return '<option value="' + c.id + '">' + c.name + '</option>'; }).join('');
+  }
+}
+
+async function listRoutes() {
+  await api('GET', '/world/routes');
+}
+
+async function travel() {
+  const toCityId = document.getElementById('travel-dest').value;
+  if (!toCityId) { alert('Click "List cities" first to pick a destination.'); return; }
+  const { status, data } = await api('POST', '/world/travel', { toCityId: toCityId });
+  if (status === 201) renderSheet(data.character);
+}
+
+async function listMonsters() {
+  const { status, data } = await api('GET', '/combat/monsters');
+  if (status === 200) {
+    document.getElementById('fight-monster').innerHTML =
+      data.map(function (m) { return '<option value="' + m.id + '">' + m.name + ' (hp ' + m.hp + ')</option>'; }).join('');
+  }
+}
+
+async function fight() {
+  const monsterId = document.getElementById('fight-monster').value;
+  if (!monsterId) { alert('Click "List monsters" first to pick one.'); return; }
+  const { status, data } = await api('POST', '/combat/fight', { monsterId: monsterId });
+  if (status === 201) renderSheet(data.character);
+}
+
+// On load, check whether a session already exists (cookie survives refresh).
+whoAmI();
+</script>
+</body>
+</html>
