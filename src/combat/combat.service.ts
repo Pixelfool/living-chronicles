@@ -46,42 +46,27 @@ export class CombatService {
       throw new NotFoundException('no such monster');
     }
 
-    const character = await this.prisma.character.findUnique({
+    // Fast-fail pre-check so an obviously-bad request (no character yet)
+    // doesn't pay for opening a transaction. Not the source of
+    // correctness - the transaction below is.
+    const precheck = await this.prisma.character.findUnique({
       where: { userId },
     });
-    if (!character) {
+    if (!precheck) {
       throw new NotFoundException('no character on this account yet');
     }
 
-    if (character.actionPoints < 1) {
-      throw new ConflictException(
-        'not enough action points to fight - rest and come back later',
-      );
-    }
-
-    const bonuses = await this.inventory.getEquipmentBonuses(character.id);
-    const { outcome, xpGained, xpResult, newHp } = resolveFight(
-      { ...character, ...bonuses },
-      monster,
-    );
-
-    const lootItemId = outcome.victory ? rollLoot(monster.lootTable) : null;
-    let itemInstanceId: string | null = null;
-
-    // Combat -> Inventory is a real cross-module write (build-plan-v1 M4):
-    // the AP-gated stat update and the loot grant must succeed or fail
-    // together, so this is one Postgres transaction applied directly at
-    // this call site (architecture.md §4.4), not a generic framework.
-    const updated = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Claiming the action point up front both gates on it atomically
+      // AND takes a row lock for the rest of this transaction (Postgres
+      // holds the lock an UPDATE acquires until commit). Everything
+      // read after this point - hp, xp, level, equipped gear - is
+      // therefore guaranteed fresh: no other concurrent fight or travel
+      // can be mutating this same character while we hold the lock, so
+      // there's no stale snapshot left to silently overwrite.
       const { count } = await tx.character.updateMany({
         where: { userId, actionPoints: { gte: 1 } },
-        data: {
-          hp: newHp,
-          maxHp: xpResult.maxHp,
-          level: xpResult.level,
-          xp: xpResult.xp,
-          actionPoints: { decrement: 1 },
-        },
+        data: { actionPoints: { decrement: 1 } },
       });
 
       if (count === 0) {
@@ -90,6 +75,32 @@ export class CombatService {
         );
       }
 
+      const character = await tx.character.findUniqueOrThrow({
+        where: { userId },
+      });
+      const equipped = await tx.itemInstance.findMany({
+        where: { characterId: character.id, equipped: true },
+      });
+      const bonuses = this.inventory.sumEquipmentBonuses(equipped);
+
+      const { outcome, xpGained, xpResult, newHp } = resolveFight(
+        { ...character, ...bonuses },
+        monster,
+      );
+
+      const lootItemId = outcome.victory ? rollLoot(monster.lootTable) : null;
+      let itemInstanceId: string | null = null;
+
+      await tx.character.update({
+        where: { userId },
+        data: {
+          hp: newHp,
+          maxHp: xpResult.maxHp,
+          level: xpResult.level,
+          xp: xpResult.xp,
+        },
+      });
+
       if (lootItemId) {
         const created = await tx.itemInstance.create({
           data: { characterId: character.id, itemId: lootItemId },
@@ -97,42 +108,54 @@ export class CombatService {
         itemInstanceId = created.id;
       }
 
-      return tx.character.findUniqueOrThrow({ where: { userId } });
+      const updated = await tx.character.findUniqueOrThrow({
+        where: { userId },
+      });
+
+      return {
+        outcome,
+        xpGained,
+        xpResult,
+        lootItemId,
+        itemInstanceId,
+        updated,
+        characterId: character.id,
+      };
     });
 
     this.eventEmitter.emit('BattleFinished', {
       userId,
-      characterId: character.id,
+      characterId: result.characterId,
       monsterId: monster.id,
-      victory: outcome.victory,
-      xpGained,
+      victory: result.outcome.victory,
+      xpGained: result.xpGained,
     } satisfies BattleFinishedEvent);
 
-    if (xpResult.leveledUp) {
+    if (result.xpResult.leveledUp) {
       this.eventEmitter.emit('PlayerLevelUp', {
         userId,
-        characterId: character.id,
-        newLevel: xpResult.level,
+        characterId: result.characterId,
+        newLevel: result.xpResult.level,
       } satisfies PlayerLevelUpEvent);
     }
 
-    if (lootItemId && itemInstanceId) {
+    if (result.lootItemId && result.itemInstanceId) {
       this.eventEmitter.emit('ItemAcquired', {
         userId,
-        characterId: character.id,
-        itemInstanceId,
-        itemId: lootItemId,
+        characterId: result.characterId,
+        itemInstanceId: result.itemInstanceId,
+        itemId: result.lootItemId,
       } satisfies ItemAcquiredEvent);
     }
 
     return {
-      victory: outcome.victory,
+      victory: result.outcome.victory,
       monster: { id: monster.id, name: monster.name },
-      log: describeBattle(outcome, monster.name),
-      xpGained,
-      leveledUp: xpResult.leveledUp,
-      lootItemId,
-      character: updated,
+      log: describeBattle(result.outcome, monster.name),
+      xpGained: result.xpGained,
+      leveledUp: result.xpResult.leveledUp,
+      lootItemId: result.lootItemId,
+      character: result.updated,
     };
   }
 }

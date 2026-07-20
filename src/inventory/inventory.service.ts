@@ -28,6 +28,11 @@ export interface InventoryEntry {
   blurb: string | undefined;
 }
 
+export interface EquipmentBonuses {
+  attackBonus: number;
+  defenseBonus: number;
+}
+
 @Injectable()
 export class InventoryService {
   constructor(
@@ -74,20 +79,15 @@ export class InventoryService {
   }
 
   /**
-   * Sum of attack/defense bonuses from currently-equipped gear. Used by
-   * Combat and World when resolving a fight, so equipping something
-   * actually changes the numbers, not just the character sheet.
+   * Sum of attack/defense bonuses from a set of already-fetched item
+   * instances. Pure (no DB access) so Combat/World can call it with rows
+   * read inside their own locked transaction, instead of this service
+   * issuing a second, separately-timed query outside that lock.
    */
-  async getEquipmentBonuses(
-    characterId: string,
-  ): Promise<{ attackBonus: number; defenseBonus: number }> {
-    const equipped = await this.prisma.itemInstance.findMany({
-      where: { characterId, equipped: true },
-    });
-
+  sumEquipmentBonuses(instances: { itemId: string }[]): EquipmentBonuses {
     let attackBonus = 0;
     let defenseBonus = 0;
-    for (const instance of equipped) {
+    for (const instance of instances) {
       const item = this.content.findItem(instance.itemId);
       if (item) {
         attackBonus += item.attackBonus;
@@ -115,10 +115,6 @@ export class InventoryService {
       throw new NotFoundException('item no longer exists in the content pack');
     }
 
-    // Everything else in this slot belongs to a known, static list of item
-    // ids (derived from content, not a prior DB read) - so this clears the
-    // slot and equips the target as one atomic transaction, with no
-    // read-then-write race between them.
     const itemIdsInSlot = this.content
       .getItems()
       .filter((candidate) => candidate.slot === item.slot)

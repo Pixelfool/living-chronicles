@@ -56,5 +56,7 @@ model ItemInstance {
   equipped    Boolean  @default(false)
   createdAt   DateTime @default(now())
 
+  @@index([characterId])
+  @@index([characterId, equipped])
   @@map("item_instances")
 }
