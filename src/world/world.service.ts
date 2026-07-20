@@ -80,10 +80,7 @@ export class WorldService {
       if (beforeClaim.currentCityId === toCityId) {
         throw new BadRequestException('already there');
       }
-      const route = this.content.findRoute(
-        beforeClaim.currentCityId,
-        toCityId,
-      );
+      const route = this.content.findRoute(beforeClaim.currentCityId, toCityId);
       if (!route) {
         throw new NotFoundException('no route between these cities');
       }
@@ -127,17 +124,19 @@ export class WorldService {
 
       if (shouldEncounter) {
         const monsterId =
-          route.monsterIds[
-            Math.floor(Math.random() * route.monsterIds.length)
-          ];
+          route.monsterIds[Math.floor(Math.random() * route.monsterIds.length)];
         const monster = this.content.findMonster(monsterId);
         if (monster) {
           const equipped = await tx.itemInstance.findMany({
             where: { characterId: character.id, equipped: true },
           });
           const bonuses = this.inventory.sumEquipmentBonuses(equipped);
-          const { outcome, xpGained, xpResult, newHp: hpAfterFight } =
-            resolveFight({ ...character, ...bonuses }, monster);
+          const {
+            outcome,
+            xpGained,
+            xpResult,
+            newHp: hpAfterFight,
+          } = resolveFight({ ...character, ...bonuses }, monster);
           newHp = hpAfterFight;
           newMaxHp = xpResult.maxHp;
           newLevel = xpResult.level;
