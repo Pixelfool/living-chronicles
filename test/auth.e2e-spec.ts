@@ -21,7 +21,9 @@ describe('Auth (e2e)', () => {
   });
 
   afterAll(async () => {
-    await prisma.user.deleteMany({ where: { email: { contains: 'e2e-auth' } } });
+    await prisma.user.deleteMany({
+      where: { email: { contains: 'e2e-auth' } },
+    });
     await app.close();
   });
 
@@ -36,13 +38,19 @@ describe('Auth (e2e)', () => {
       .send({ email, username, password })
       .expect(201);
 
-    const registerBody = registerRes.body as { username: string; email: string };
+    const registerBody = registerRes.body as {
+      username: string;
+      email: string;
+    };
     expect(registerBody.username).toBe(username);
 
     const cookie = registerRes.headers['set-cookie'] as unknown as string[];
     expect(cookie).toBeDefined();
 
-    const meRes = await request(server).get('/auth/me').set('Cookie', cookie).expect(200);
+    const meRes = await request(server)
+      .get('/auth/me')
+      .set('Cookie', cookie)
+      .expect(200);
     const meBody = meRes.body as { email: string };
     expect(meBody.email).toBe(email);
   });
@@ -80,7 +88,11 @@ describe('Auth (e2e)', () => {
 
     await request(server)
       .post('/auth/register')
-      .send({ email, username: `${username}other`, password: 'correct horse battery staple' })
+      .send({
+        email,
+        username: `${username}other`,
+        password: 'correct horse battery staple',
+      })
       .expect(409);
   });
 });

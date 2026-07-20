@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ARCHETYPES } from './archetypes';
 import { CreateCharacterDto } from './dto/create-character.dto';
@@ -8,7 +12,9 @@ export class CharacterService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createForUser(userId: string, dto: CreateCharacterDto) {
-    const existing = await this.prisma.character.findUnique({ where: { userId } });
+    const existing = await this.prisma.character.findUnique({
+      where: { userId },
+    });
     if (existing) {
       throw new ConflictException('this account already has a character');
     }
@@ -34,7 +40,9 @@ export class CharacterService {
   }
 
   async getForUser(userId: string) {
-    const character = await this.prisma.character.findUnique({ where: { userId } });
+    const character = await this.prisma.character.findUnique({
+      where: { userId },
+    });
     if (!character) {
       throw new NotFoundException('no character on this account yet');
     }

@@ -21,7 +21,9 @@ describe('Character (e2e)', () => {
   });
 
   afterAll(async () => {
-    await prisma.user.deleteMany({ where: { email: { contains: 'e2e-char' } } });
+    await prisma.user.deleteMany({
+      where: { email: { contains: 'e2e-char' } },
+    });
     await app.close();
   });
 
@@ -54,12 +56,19 @@ describe('Character (e2e)', () => {
       .send({ name, archetype: 'DUELIST' })
       .expect(201);
 
-    const createBody = createRes.body as { name: string; body: number; level: number };
+    const createBody = createRes.body as {
+      name: string;
+      body: number;
+      level: number;
+    };
     expect(createBody.name).toBe(name);
     expect(createBody.body).toBe(5);
     expect(createBody.level).toBe(1);
 
-    const viewRes = await request(server).get('/characters/me').set('Cookie', cookie).expect(200);
+    const viewRes = await request(server)
+      .get('/characters/me')
+      .set('Cookie', cookie)
+      .expect(200);
     const viewBody = viewRes.body as { name: string };
     expect(viewBody.name).toBe(name);
   });
@@ -84,6 +93,9 @@ describe('Character (e2e)', () => {
   it('returns 404 viewing a character before one exists', async () => {
     const server = app.getHttpServer() as Parameters<typeof request>[0];
     const cookie = await registerAndGetCookie(server);
-    await request(server).get('/characters/me').set('Cookie', cookie).expect(404);
+    await request(server)
+      .get('/characters/me')
+      .set('Cookie', cookie)
+      .expect(404);
   });
 });

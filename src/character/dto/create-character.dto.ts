@@ -6,7 +6,8 @@ export class CreateCharacterDto {
   @MinLength(2)
   @MaxLength(20)
   @Matches(/^[a-zA-Z][a-zA-Z0-9]*$/, {
-    message: 'name must start with a letter and contain only letters and numbers',
+    message:
+      'name must start with a letter and contain only letters and numbers',
   })
   name: string;
 

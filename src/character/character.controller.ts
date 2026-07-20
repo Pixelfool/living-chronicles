@@ -11,7 +11,10 @@ export class CharacterController {
 
   @Post()
   create(@Body() dto: CreateCharacterDto, @Req() req: Request) {
-    return this.characterService.createForUser(req.session.userId as string, dto);
+    return this.characterService.createForUser(
+      req.session.userId as string,
+      dto,
+    );
   }
 
   @Get('me')
