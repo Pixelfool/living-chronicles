@@ -5,7 +5,12 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { createAgent, primeCsrfToken, registerUser, uniqueSuffix } from './test-utils';
+import {
+  createAgent,
+  primeCsrfToken,
+  registerUser,
+  uniqueSuffix,
+} from './test-utils';
 
 describe('Auth (e2e)', () => {
   let app: INestApplication;
@@ -94,10 +99,7 @@ describe('Auth (e2e)', () => {
     const csrfToken = await primeCsrfToken(agent);
     await registerUser(agent, 'e2e-auth-logout');
 
-    await agent
-      .post('/auth/logout')
-      .set('x-csrf-token', csrfToken)
-      .expect(200);
+    await agent.post('/auth/logout').set('x-csrf-token', csrfToken).expect(200);
 
     await agent.get('/auth/me').expect(401);
   });

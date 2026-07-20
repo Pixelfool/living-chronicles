@@ -44,7 +44,10 @@ describe('Combat (e2e)', () => {
     await agent
       .post('/characters')
       .set('x-csrf-token', csrfToken)
-      .send({ name: `Fighter${Date.now()}${Math.floor(Math.random() * 1000)}`, archetype: 'DUELIST' })
+      .send({
+        name: `Fighter${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        archetype: 'DUELIST',
+      })
       .expect(201);
 
     return { agent, csrfToken };
