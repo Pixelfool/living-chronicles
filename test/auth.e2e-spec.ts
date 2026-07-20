@@ -87,20 +87,22 @@ describe('Auth (e2e)', () => {
       .expect(409);
   });
 
-  it('rejects logout without a valid CSRF token', async () => {
-    const agent = createAgent(server);
-    await registerUser(agent, 'e2e-auth-logout-nocsrf');
-
-    await agent.post('/auth/logout').expect(403);
-  });
-
-  it('logs out with a valid CSRF token and invalidates the session', async () => {
+  it('rejects logout without a CSRF token, then succeeds with one', async () => {
+    // One registration shared by both assertions - register is
+    // rate-limited (§3), and this file already spends most of that
+    // budget on the tests above.
     const agent = createAgent(server);
     const csrfToken = await primeCsrfToken(agent);
     await registerUser(agent, 'e2e-auth-logout');
 
-    await agent.post('/auth/logout').set('x-csrf-token', csrfToken).expect(200);
+    await agent.post('/auth/logout').expect(403);
+    // A rejected CSRF check must not have torn down the session.
+    await agent.get('/auth/me').expect(200);
 
+    await agent
+      .post('/auth/logout')
+      .set('x-csrf-token', csrfToken)
+      .expect(200);
     await agent.get('/auth/me').expect(401);
   });
 });

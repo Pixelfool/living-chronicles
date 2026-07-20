@@ -5,7 +5,12 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { createAgent, primeCsrfToken, registerUser } from './test-utils';
+import {
+  createAgent,
+  primeCsrfToken,
+  registerUser,
+  uniqueSuffix,
+} from './test-utils';
 
 describe('Combat (e2e)', () => {
   let app: INestApplication;
@@ -45,7 +50,7 @@ describe('Combat (e2e)', () => {
       .post('/characters')
       .set('x-csrf-token', csrfToken)
       .send({
-        name: `Fighter${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        name: `Fighter${uniqueSuffix()}`,
         archetype: 'DUELIST',
       })
       .expect(201);
