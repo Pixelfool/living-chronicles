@@ -32,7 +32,8 @@ export const MONSTERS: readonly MonsterDefinition[] = [
     attack: 4,
     defense: 1,
     xpReward: 35,
-    blurb: 'Wants your coin purse more than your life, but will settle for either.',
+    blurb:
+      'Wants your coin purse more than your life, but will settle for either.',
   },
   {
     id: 'direwolf',

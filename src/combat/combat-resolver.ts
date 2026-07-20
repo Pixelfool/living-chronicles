@@ -33,10 +33,7 @@ export function resolveBattle(
   const rounds: BattleRound[] = [];
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
-    const playerDamage = Math.max(
-      1,
-      playerAttack + rollD6() - monster.defense,
-    );
+    const playerDamage = Math.max(1, playerAttack + rollD6() - monster.defense);
     monsterHp = Math.max(0, monsterHp - playerDamage);
     rounds.push({
       attacker: 'player',

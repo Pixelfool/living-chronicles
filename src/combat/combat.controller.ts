@@ -16,6 +16,9 @@ export class CombatController {
 
   @Post('fight')
   fight(@Body() dto: FightDto, @Req() req: Request) {
-    return this.combatService.fight(req.session.userId as string, dto.monsterId);
+    return this.combatService.fight(
+      req.session.userId as string,
+      dto.monsterId,
+    );
   }
 }

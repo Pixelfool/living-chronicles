@@ -37,7 +37,9 @@ describe('Combat (e2e)', () => {
     redisClient.disconnect();
   });
 
-  async function registerCharacterAndGetCookie(server: Parameters<typeof request>[0]) {
+  async function registerCharacterAndGetCookie(
+    server: Parameters<typeof request>[0],
+  ) {
     const suffix = uniqueSuffix();
     const email = `e2e-combat-${suffix}@example.com`;
     const username = `e2ecombat${suffix}`;

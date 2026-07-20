@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { applyXpGain } from '../character/leveling';
 import { PrismaService } from '../prisma/prisma.service';
 import { describeBattle, resolveBattle } from './combat-resolver';

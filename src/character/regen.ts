@@ -20,7 +20,10 @@ export function computeRegenTick(
     return null;
   }
 
-  const hpGain = Math.max(1, Math.ceil(character.maxHp * HP_REGEN_PERCENT_PER_TICK));
+  const hpGain = Math.max(
+    1,
+    Math.ceil(character.maxHp * HP_REGEN_PERCENT_PER_TICK),
+  );
   const hp = Math.min(character.maxHp, character.hp + hpGain);
   const actionPoints = Math.min(
     character.maxActionPoints,

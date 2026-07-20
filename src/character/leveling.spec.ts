@@ -1,4 +1,9 @@
-import { applyXpGain, LEVEL_CAP, maxHpForCharacter, xpForNextLevel } from './leveling';
+import {
+  applyXpGain,
+  LEVEL_CAP,
+  maxHpForCharacter,
+  xpForNextLevel,
+} from './leveling';
 
 describe('leveling', () => {
   it('does not level up when xp is below the threshold', () => {

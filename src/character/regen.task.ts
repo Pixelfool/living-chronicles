@@ -21,8 +21,10 @@ export class RegenTask {
       .filter(
         (
           entry,
-        ): entry is { id: string; tick: { hp: number; actionPoints: number } } =>
-          entry.tick !== null,
+        ): entry is {
+          id: string;
+          tick: { hp: number; actionPoints: number };
+        } => entry.tick !== null,
       )
       .map((entry) =>
         this.prisma.character.update({

@@ -48,5 +48,10 @@ export function applyXpGain(
     xp = 0;
   }
 
-  return { level, xp, maxHp: maxHpForCharacter(character.body, level), leveledUp };
+  return {
+    level,
+    xp,
+    maxHp: maxHpForCharacter(character.body, level),
+    leveledUp,
+  };
 }

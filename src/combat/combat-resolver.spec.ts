@@ -21,8 +21,16 @@ describe('resolveBattle', () => {
 
   it('is deterministic given a fixed rng', () => {
     const rng = () => 0.5;
-    const a = resolveBattle({ hp: 30, body: 5 }, { hp: 20, attack: 4, defense: 1 }, rng);
-    const b = resolveBattle({ hp: 30, body: 5 }, { hp: 20, attack: 4, defense: 1 }, rng);
+    const a = resolveBattle(
+      { hp: 30, body: 5 },
+      { hp: 20, attack: 4, defense: 1 },
+      rng,
+    );
+    const b = resolveBattle(
+      { hp: 30, body: 5 },
+      { hp: 20, attack: 4, defense: 1 },
+      rng,
+    );
     expect(a).toEqual(b);
   });
 
