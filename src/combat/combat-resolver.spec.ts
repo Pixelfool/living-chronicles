@@ -43,6 +43,37 @@ describe('resolveBattle', () => {
     );
     expect(outcome.rounds.length).toBeLessThanOrEqual(40);
   });
+
+  it('equipment attackBonus increases damage dealt', () => {
+    const rng = () => 0; // fixed roll so only the bonus varies the outcome
+    const unequipped = resolveBattle(
+      { hp: 100, body: 5 },
+      { hp: 1000, attack: 0, defense: 0 },
+      rng,
+    );
+    const equipped = resolveBattle(
+      { hp: 100, body: 5, attackBonus: 10 },
+      { hp: 1000, attack: 0, defense: 0 },
+      rng,
+    );
+    expect(equipped.rounds[0].damage).toBeGreaterThan(unequipped.rounds[0].damage);
+  });
+
+  it('equipment defenseBonus reduces damage taken', () => {
+    const rng = () => 0;
+    const unequipped = resolveBattle(
+      { hp: 100, body: 5 },
+      { hp: 1000, attack: 20, defense: 0 },
+      rng,
+    );
+    const equipped = resolveBattle(
+      { hp: 100, body: 5, defenseBonus: 10 },
+      { hp: 1000, attack: 20, defense: 0 },
+      rng,
+    );
+    // round index 1 is the monster's first hit against the player
+    expect(equipped.rounds[1].damage).toBeLessThan(unequipped.rounds[1].damage);
+  });
 });
 
 describe('resolveFight', () => {

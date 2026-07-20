@@ -22,12 +22,17 @@ export interface BattleOutcome {
 }
 
 export function resolveBattle(
-  player: { hp: number; body: number },
+  player: {
+    hp: number;
+    body: number;
+    attackBonus?: number;
+    defenseBonus?: number;
+  },
   monster: { hp: number; attack: number; defense: number },
   rng: () => number = Math.random,
 ): BattleOutcome {
-  const playerAttack = player.body * 2;
-  const playerDefense = Math.floor(player.body / 2);
+  const playerAttack = player.body * 2 + (player.attackBonus ?? 0);
+  const playerDefense = Math.floor(player.body / 2) + (player.defenseBonus ?? 0);
   const rollD6 = () => Math.floor(rng() * 6) + 1;
 
   let playerHp = player.hp;
@@ -118,12 +123,24 @@ export interface ResolvedFight {
  * encounters so the two don't duplicate this logic.
  */
 export function resolveFight(
-  character: { hp: number; body: number; level: number; xp: number },
+  character: {
+    hp: number;
+    body: number;
+    level: number;
+    xp: number;
+    attackBonus?: number;
+    defenseBonus?: number;
+  },
   monster: { hp: number; attack: number; defense: number; xpReward: number },
   rng: () => number = Math.random,
 ): ResolvedFight {
   const outcome = resolveBattle(
-    { hp: character.hp, body: character.body },
+    {
+      hp: character.hp,
+      body: character.body,
+      attackBonus: character.attackBonus,
+      defenseBonus: character.defenseBonus,
+    },
     monster,
     rng,
   );

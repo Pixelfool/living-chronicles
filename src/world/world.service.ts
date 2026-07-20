@@ -10,7 +10,9 @@ import {
   BattleFinishedEvent,
   PlayerLevelUpEvent,
 } from '../combat/combat.service';
+import { rollLoot } from '../combat/loot';
 import { ContentService } from '../content/content.service';
+import { InventoryService, ItemAcquiredEvent } from '../inventory/inventory.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface PlayerEnteredLocationEvent {
@@ -25,6 +27,7 @@ export interface TravelEncounter {
   victory: boolean;
   xpGained: number;
   leveledUp: boolean;
+  lootItemId: string | null;
 }
 
 @Injectable()
@@ -32,6 +35,7 @@ export class WorldService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly content: ContentService,
+    private readonly inventory: InventoryService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -79,6 +83,7 @@ export class WorldService {
     let newMaxHp = character.maxHp;
     let newLevel = character.level;
     let newXp = character.xp;
+    let lootItemId: string | null = null;
 
     const shouldEncounter =
       route.monsterIds.length > 0 && Math.random() < route.encounterChance;
@@ -88,48 +93,57 @@ export class WorldService {
         route.monsterIds[Math.floor(Math.random() * route.monsterIds.length)];
       const monster = this.content.findMonster(monsterId);
       if (monster) {
-        const {
-          outcome,
-          xpGained,
-          xpResult,
-          newHp: hpAfterFight,
-        } = resolveFight(character, monster);
+        const bonuses = await this.inventory.getEquipmentBonuses(character.id);
+        const { outcome, xpGained, xpResult, newHp: hpAfterFight } =
+          resolveFight({ ...character, ...bonuses }, monster);
         newHp = hpAfterFight;
         newMaxHp = xpResult.maxHp;
         newLevel = xpResult.level;
         newXp = xpResult.xp;
+        lootItemId = outcome.victory ? rollLoot(monster.lootTable) : null;
         encounter = {
           monster: { id: monster.id, name: monster.name },
           log: describeBattle(outcome, monster.name),
           victory: outcome.victory,
           xpGained,
           leveledUp: xpResult.leveledUp,
+          lootItemId,
         };
       }
     }
 
-    // Conditional on actionPoints still covering the toll at write time -
-    // same TOCTOU-safe pattern as combat's fight().
-    const { count } = await this.prisma.character.updateMany({
-      where: { userId, actionPoints: { gte: route.travelCost } },
-      data: {
-        currentCityId: toCityId,
-        actionPoints: { decrement: route.travelCost },
-        hp: newHp,
-        maxHp: newMaxHp,
-        level: newLevel,
-        xp: newXp,
-      },
-    });
+    let itemInstanceId: string | null = null;
 
-    if (count === 0) {
-      throw new ConflictException(
-        'not enough action points to travel there - rest and come back later',
-      );
-    }
+    // Same cross-module transaction pattern as CombatService.fight(): the
+    // travel/AP/city update and any encounter loot grant succeed or fail
+    // together (architecture.md §4.4, applied directly per build-plan M4).
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.character.updateMany({
+        where: { userId, actionPoints: { gte: route.travelCost } },
+        data: {
+          currentCityId: toCityId,
+          actionPoints: { decrement: route.travelCost },
+          hp: newHp,
+          maxHp: newMaxHp,
+          level: newLevel,
+          xp: newXp,
+        },
+      });
 
-    const updated = await this.prisma.character.findUniqueOrThrow({
-      where: { userId },
+      if (count === 0) {
+        throw new ConflictException(
+          'not enough action points to travel there - rest and come back later',
+        );
+      }
+
+      if (lootItemId) {
+        const created = await tx.itemInstance.create({
+          data: { characterId: character.id, itemId: lootItemId },
+        });
+        itemInstanceId = created.id;
+      }
+
+      return tx.character.findUniqueOrThrow({ where: { userId } });
     });
 
     this.eventEmitter.emit('PlayerEnteredLocation', {
@@ -153,6 +167,15 @@ export class WorldService {
           characterId: character.id,
           newLevel,
         } satisfies PlayerLevelUpEvent);
+      }
+
+      if (lootItemId && itemInstanceId) {
+        this.eventEmitter.emit('ItemAcquired', {
+          userId,
+          characterId: character.id,
+          itemInstanceId,
+          itemId: lootItemId,
+        } satisfies ItemAcquiredEvent);
       }
     }
 

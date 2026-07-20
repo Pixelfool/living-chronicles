@@ -49,4 +49,25 @@ describe('ContentService (real content pack)', () => {
       }
     }
   });
+
+  it('loads the item roster with WEAPON and ARMOR slots', () => {
+    const items = content.getItems();
+    expect(items.map((i) => i.id).sort()).toEqual([
+      'bandit-dagger',
+      'leather-vest',
+      'rusty-sword',
+      'wolf-pelt-cloak',
+    ]);
+    expect(items.every((i) => i.slot === 'WEAPON' || i.slot === 'ARMOR')).toBe(
+      true,
+    );
+  });
+
+  it('resolves every item referenced by every monster loot table', () => {
+    for (const monster of content.getMonsters()) {
+      for (const drop of monster.lootTable) {
+        expect(content.findItem(drop.itemId)).toBeDefined();
+      }
+    }
+  });
 });

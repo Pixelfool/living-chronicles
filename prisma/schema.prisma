@@ -41,8 +41,20 @@ model Character {
   actionPoints    Int       @default(10)
   maxActionPoints Int       @default(10)
   currentCityId   String
+  items           ItemInstance[]
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   @@map("characters")
+}
+
+model ItemInstance {
+  id          String   @id @default(uuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id])
+  itemId      String
+  equipped    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@map("item_instances")
 }

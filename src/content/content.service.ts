@@ -5,6 +5,8 @@ import { parse } from 'yaml';
 import {
   CitiesFileSchema,
   City,
+  Item,
+  ItemsFileSchema,
   MonstersFileSchema,
   Monster,
   RegionsFileSchema,
@@ -21,13 +23,15 @@ const CONTENT_DIR =
  * dependency resolution the target architecture eventually needs).
  * Fails loudly at boot, before the app accepts traffic, on malformed data
  * or a broken in-pack reference (a region pointing at a city or monster
- * that doesn't exist).
+ * that doesn't exist, or a monster's loot table pointing at an item that
+ * doesn't exist).
  */
 @Injectable()
 export class ContentService implements OnModuleInit {
   private readonly logger = new Logger(ContentService.name);
   private cities = new Map<string, City>();
   private monsters = new Map<string, Monster>();
+  private items = new Map<string, Item>();
   private regions: Region[] = [];
   private startingCityId!: string;
 
@@ -41,6 +45,7 @@ export class ContentService implements OnModuleInit {
       this.readYaml('monsters.yaml'),
     );
     const regionsFile = RegionsFileSchema.parse(this.readYaml('regions.yaml'));
+    const itemsFile = ItemsFileSchema.parse(this.readYaml('items.yaml'));
 
     const cities = new Map<string, City>();
     for (const city of citiesFile.cities) {
@@ -50,12 +55,27 @@ export class ContentService implements OnModuleInit {
       cities.set(city.id, city);
     }
 
+    const items = new Map<string, Item>();
+    for (const item of itemsFile.items) {
+      if (items.has(item.id)) {
+        throw new Error(`duplicate item id in content pack: "${item.id}"`);
+      }
+      items.set(item.id, item);
+    }
+
     const monsters = new Map<string, Monster>();
     for (const monster of monstersFile.monsters) {
       if (monsters.has(monster.id)) {
         throw new Error(
           `duplicate monster id in content pack: "${monster.id}"`,
         );
+      }
+      for (const drop of monster.lootTable) {
+        if (!items.has(drop.itemId)) {
+          throw new Error(
+            `monster "${monster.id}" loot table references unknown item "${drop.itemId}"`,
+          );
+        }
       }
       monsters.set(monster.id, monster);
     }
@@ -88,11 +108,12 @@ export class ContentService implements OnModuleInit {
 
     this.cities = cities;
     this.monsters = monsters;
+    this.items = items;
     this.regions = regionsFile.regions;
     this.startingCityId = startingCities[0].id;
 
     this.logger.log(
-      `Loaded content pack: ${this.cities.size} cities, ${this.regions.length} regions, ${this.monsters.size} monsters`,
+      `Loaded content pack: ${this.cities.size} cities, ${this.regions.length} regions, ${this.monsters.size} monsters, ${this.items.size} items`,
     );
   }
 
@@ -131,5 +152,13 @@ export class ContentService implements OnModuleInit {
 
   findMonster(id: string): Monster | undefined {
     return this.monsters.get(id);
+  }
+
+  getItems(): Item[] {
+    return [...this.items.values()];
+  }
+
+  findItem(id: string): Item | undefined {
+    return this.items.get(id);
   }
 }

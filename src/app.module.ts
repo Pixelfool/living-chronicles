@@ -9,6 +9,7 @@ import { CharacterModule } from './character/character.module';
 import { CombatModule } from './combat/combat.module';
 import { ContentModule } from './content/content.module';
 import { HealthModule } from './health/health.module';
+import { InventoryModule } from './inventory/inventory.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { WorldModule } from './world/world.module';
 
@@ -25,6 +26,7 @@ import { WorldModule } from './world/world.module';
     HealthModule,
     AuthModule,
     CharacterModule,
+    InventoryModule,
     CombatModule,
     WorldModule,
   ],

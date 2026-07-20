@@ -6,6 +6,11 @@ monsters:
     defense: 0
     xpReward: 15
     blurb: Small, fast, and unreasonably angry.
+    lootTable:
+      - itemId: rusty-sword
+        dropChance: 0.1
+      - itemId: leather-vest
+        dropChance: 0.1
   - id: bandit
     name: Highway Bandit
     hp: 20
@@ -13,6 +18,9 @@ monsters:
     defense: 1
     xpReward: 35
     blurb: Wants your coin purse more than your life, but will settle for either.
+    lootTable:
+      - itemId: bandit-dagger
+        dropChance: 0.3
   - id: direwolf
     name: Direwolf
     hp: 35
@@ -20,3 +28,6 @@ monsters:
     defense: 2
     xpReward: 60
     blurb: Bigger than it has any right to be.
+    lootTable:
+      - itemId: wolf-pelt-cloak
+        dropChance: 0.25

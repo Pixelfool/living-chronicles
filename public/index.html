@@ -82,6 +82,14 @@
   </div>
 </section>
 
+<section>
+  <h2>Inventory</h2>
+  <div class="row">
+    <button onclick="listInventory()">Refresh inventory</button>
+  </div>
+  <div id="inventory">No items loaded yet.</div>
+</section>
+
 <h2>Last response (raw)</h2>
 <div id="log">Nothing yet.</div>
 
@@ -205,7 +213,39 @@ async function fight() {
   const monsterId = document.getElementById('fight-monster').value;
   if (!monsterId) { alert('Click "List monsters" first to pick one.'); return; }
   const { status, data } = await api('POST', '/combat/fight', { monsterId: monsterId });
-  if (status === 201) renderSheet(data.character);
+  if (status === 201) {
+    renderSheet(data.character);
+    if (data.lootItemId) listInventory();
+  }
+}
+
+function renderInventory(items) {
+  const el = document.getElementById('inventory');
+  if (!items.length) { el.textContent = 'No items yet - fight something and hope.'; return; }
+  el.innerHTML = items.map(function (item) {
+    var bonus = (item.attackBonus ? '+' + item.attackBonus + ' atk ' : '') +
+      (item.defenseBonus ? '+' + item.defenseBonus + ' def' : '');
+    var action = item.equipped
+      ? '<button onclick="unequipItem(\'' + item.id + '\')">Unequip</button>'
+      : '<button onclick="equipItem(\'' + item.id + '\')">Equip</button>';
+    return '<div class="row"><strong>' + item.name + '</strong> (' + item.slot + ', ' + bonus + ')' +
+      (item.equipped ? ' <em>[equipped]</em>' : '') + ' ' + action + '</div>';
+  }).join('');
+}
+
+async function listInventory() {
+  const { status, data } = await api('GET', '/inventory');
+  if (status === 200) renderInventory(data);
+}
+
+async function equipItem(itemInstanceId) {
+  const { status, data } = await api('POST', '/inventory/' + itemInstanceId + '/equip');
+  if (status === 201) renderInventory(data);
+}
+
+async function unequipItem(itemInstanceId) {
+  const { status, data } = await api('POST', '/inventory/' + itemInstanceId + '/unequip');
+  if (status === 201) renderInventory(data);
 }
 
 // On load, check whether a session already exists (cookie survives refresh).
