@@ -5,6 +5,7 @@ import { AppModule } from '../src/app.module';
 
 describe('Health (e2e)', () => {
   let app: INestApplication;
+  let server: Parameters<typeof request>[0];
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -13,6 +14,7 @@ describe('Health (e2e)', () => {
 
     app = moduleRef.createNestApplication();
     await app.init();
+    server = app.getHttpServer() as Parameters<typeof request>[0];
   });
 
   afterAll(async () => {
@@ -20,7 +22,7 @@ describe('Health (e2e)', () => {
   });
 
   it('/health (GET)', () => {
-    return request(app.getHttpServer())
+    return request(server)
       .get('/health')
       .expect(200)
       .expect((res) => {

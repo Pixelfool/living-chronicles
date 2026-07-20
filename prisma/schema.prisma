@@ -8,15 +8,65 @@ datasource db {
 }
 
 model User {
-  id           String     @id @default(uuid())
-  email        String     @unique
-  username     String     @unique
-  passwordHash String
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  character    Character?
+  id                     String          @id @default(uuid())
+  email                  String          @unique
+  username               String          @unique
+  passwordHash           String
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+  character              Character?
+  friendRequestsSent     FriendRequest[] @relation("FriendRequestsSent")
+  friendRequestsReceived FriendRequest[] @relation("FriendRequestsReceived")
+  mutesMade              Mute[]          @relation("MutesMade")
+  mutesReceived          Mute[]          @relation("MutesReceived")
+  chatMessages           ChatMessage[]
 
   @@map("users")
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model FriendRequest {
+  id          String              @id @default(uuid())
+  requesterId String
+  requester   User                @relation("FriendRequestsSent", fields: [requesterId], references: [id])
+  addresseeId String
+  addressee   User                @relation("FriendRequestsReceived", fields: [addresseeId], references: [id])
+  status      FriendRequestStatus @default(PENDING)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+  @@map("friend_requests")
+}
+
+model Mute {
+  id        String   @id @default(uuid())
+  muterId   String
+  muter     User     @relation("MutesMade", fields: [muterId], references: [id])
+  mutedId   String
+  muted     User     @relation("MutesReceived", fields: [mutedId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([muterId, mutedId])
+  @@map("mutes")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+  channel   String   @default("global")
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([channel, createdAt])
+  @@map("chat_messages")
 }
 
 enum Archetype {
