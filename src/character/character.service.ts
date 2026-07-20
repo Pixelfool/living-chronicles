@@ -3,14 +3,26 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { isUniqueConstraintViolation } from '../prisma/prisma.errors';
 import { PrismaService } from '../prisma/prisma.service';
-import { ARCHETYPES } from './archetypes';
+import { ArchetypeKey, ARCHETYPES } from './archetypes';
 import { CreateCharacterDto } from './dto/create-character.dto';
 import { maxHpForCharacter } from './leveling';
 
+export interface CharacterCreatedEvent {
+  userId: string;
+  characterId: string;
+  name: string;
+  archetype: ArchetypeKey;
+}
+
 @Injectable()
 export class CharacterService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   async createForUser(userId: string, dto: CreateCharacterDto) {
     const existing = await this.prisma.character.findUnique({
@@ -29,18 +41,38 @@ export class CharacterService {
 
     const stats = ARCHETYPES[dto.archetype];
     const maxHp = maxHpForCharacter(stats.body, 1);
-    return this.prisma.character.create({
-      data: {
-        userId,
-        name: dto.name,
-        archetype: dto.archetype,
-        body: stats.body,
-        mind: stats.mind,
-        presence: stats.presence,
-        hp: maxHp,
-        maxHp,
-      },
-    });
+
+    let character;
+    try {
+      character = await this.prisma.character.create({
+        data: {
+          userId,
+          name: dto.name,
+          archetype: dto.archetype,
+          body: stats.body,
+          mind: stats.mind,
+          presence: stats.presence,
+          hp: maxHp,
+          maxHp,
+        },
+      });
+    } catch (error) {
+      if (isUniqueConstraintViolation(error)) {
+        throw new ConflictException(
+          'this account already has a character, or that name is already taken',
+        );
+      }
+      throw error;
+    }
+
+    this.eventEmitter.emit('CharacterCreated', {
+      userId,
+      characterId: character.id,
+      name: character.name,
+      archetype: dto.archetype,
+    } satisfies CharacterCreatedEvent);
+
+    return character;
   }
 
   async getForUser(userId: string) {

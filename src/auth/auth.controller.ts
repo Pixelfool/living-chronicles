@@ -14,6 +14,7 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { SessionAuthGuard } from './guards/session-auth.guard';
+import { regenerateSession } from './session.util';
 
 @Controller('auth')
 export class AuthController {
@@ -23,6 +24,7 @@ export class AuthController {
   @Post('register')
   async register(@Body() dto: RegisterDto, @Req() req: Request) {
     const user = await this.authService.register(dto);
+    await regenerateSession(req);
     req.session.userId = user.id;
     return user;
   }
@@ -32,6 +34,7 @@ export class AuthController {
   @Post('login')
   async login(@Body() dto: LoginDto, @Req() req: Request) {
     const user = await this.authService.validateCredentials(dto);
+    await regenerateSession(req);
     req.session.userId = user.id;
     return user;
   }

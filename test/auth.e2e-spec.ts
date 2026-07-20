@@ -5,15 +5,13 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
-
-function uniqueSuffix(): string {
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-}
+import { createAgent, primeCsrfToken, registerUser, uniqueSuffix } from './test-utils';
 
 describe('Auth (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let redisClient: Redis;
+  let server: Parameters<typeof request>[0];
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -24,6 +22,7 @@ describe('Auth (e2e)', () => {
     redisClient = configureApp(app);
     await app.init();
     prisma = moduleRef.get(PrismaService);
+    server = app.getHttpServer() as Parameters<typeof request>[0];
   });
 
   afterAll(async () => {
@@ -35,68 +34,45 @@ describe('Auth (e2e)', () => {
   });
 
   it('registers, sets a session cookie, and returns the user via /auth/me', async () => {
-    const server = app.getHttpServer() as Parameters<typeof request>[0];
-    const suffix = uniqueSuffix();
-    const email = `e2e-auth-${suffix}@example.com`;
-    const username = `e2eauth${suffix}`;
-    const password = 'correct horse battery staple';
+    const agent = createAgent(server);
+    const { email, username } = await registerUser(agent, 'e2e-auth');
 
-    const registerRes = await request(server)
-      .post('/auth/register')
-      .send({ email, username, password })
-      .expect(201);
-
-    const registerBody = registerRes.body as {
-      username: string;
-      email: string;
-    };
-    expect(registerBody.username).toBe(username);
-
-    const cookie = registerRes.headers['set-cookie'] as unknown as string[];
-    expect(cookie).toBeDefined();
-
-    const meRes = await request(server)
-      .get('/auth/me')
-      .set('Cookie', cookie)
-      .expect(200);
-    const meBody = meRes.body as { email: string };
+    const meRes = await agent.get('/auth/me').expect(200);
+    const meBody = meRes.body as { email: string; username: string };
     expect(meBody.email).toBe(email);
+    expect(meBody.username).toBe(username);
   });
 
   it('rejects /auth/me without a session', async () => {
-    const server = app.getHttpServer() as Parameters<typeof request>[0];
     await request(server).get('/auth/me').expect(401);
   });
 
   it('rejects login with the wrong password', async () => {
-    const server = app.getHttpServer() as Parameters<typeof request>[0];
-    const suffix = uniqueSuffix();
-    const email = `e2e-auth-wrong-${suffix}@example.com`;
-    const username = `e2eauthwrong${suffix}`;
+    const agent = createAgent(server);
+    const { username } = await registerUser(agent, 'e2e-auth-wrong');
 
-    await request(server)
-      .post('/auth/register')
-      .send({ email, username, password: 'correct horse battery staple' })
-      .expect(201);
-
-    await request(server)
+    // A fresh, unauthenticated agent - login (like register) carries no
+    // ambient session yet, so no CSRF token is required here either.
+    const anonAgent = createAgent(server);
+    await anonAgent
       .post('/auth/login')
       .send({ username, password: 'not the right password' })
       .expect(401);
   });
 
   it('rejects registering with a duplicate email or username', async () => {
-    const server = app.getHttpServer() as Parameters<typeof request>[0];
     const suffix = uniqueSuffix();
     const email = `e2e-auth-dup-${suffix}@example.com`;
     const username = `e2edup${suffix}`;
 
-    await request(server)
+    const agent = createAgent(server);
+    await agent
       .post('/auth/register')
       .send({ email, username, password: 'correct horse battery staple' })
       .expect(201);
 
-    await request(server)
+    const secondAgent = createAgent(server);
+    await secondAgent
       .post('/auth/register')
       .send({
         email,
@@ -104,5 +80,25 @@ describe('Auth (e2e)', () => {
         password: 'correct horse battery staple',
       })
       .expect(409);
+  });
+
+  it('rejects logout without a valid CSRF token', async () => {
+    const agent = createAgent(server);
+    await registerUser(agent, 'e2e-auth-logout-nocsrf');
+
+    await agent.post('/auth/logout').expect(403);
+  });
+
+  it('logs out with a valid CSRF token and invalidates the session', async () => {
+    const agent = createAgent(server);
+    const csrfToken = await primeCsrfToken(agent);
+    await registerUser(agent, 'e2e-auth-logout');
+
+    await agent
+      .post('/auth/logout')
+      .set('x-csrf-token', csrfToken)
+      .expect(200);
+
+    await agent.get('/auth/me').expect(401);
   });
 });

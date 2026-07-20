@@ -2,6 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import RedisStore from 'connect-redis';
 import session from 'express-session';
 import Redis from 'ioredis';
+import { csrfProtection } from './security/csrf';
 
 /**
  * Shared app configuration (validation pipe, Redis-backed session cookie)
@@ -36,6 +37,8 @@ export function configureApp(app: INestApplication): Redis {
       },
     }),
   );
+
+  app.use(csrfProtection);
 
   return redisClient;
 }

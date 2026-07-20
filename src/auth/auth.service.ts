@@ -3,7 +3,9 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as bcrypt from 'bcryptjs';
+import { isUniqueConstraintViolation } from '../prisma/prisma.errors';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -17,9 +19,22 @@ export interface PublicUser {
   createdAt: Date;
 }
 
+export interface PlayerRegisteredEvent {
+  userId: string;
+  email: string;
+  username: string;
+}
+
+export interface PlayerLoggedInEvent {
+  userId: string;
+}
+
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   async register(dto: RegisterDto): Promise<PublicUser> {
     const existing = await this.prisma.user.findFirst({
@@ -30,9 +45,24 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, PASSWORD_HASH_ROUNDS);
-    const user = await this.prisma.user.create({
-      data: { email: dto.email, username: dto.username, passwordHash },
-    });
+
+    let user;
+    try {
+      user = await this.prisma.user.create({
+        data: { email: dto.email, username: dto.username, passwordHash },
+      });
+    } catch (error) {
+      if (isUniqueConstraintViolation(error)) {
+        throw new ConflictException('email or username already in use');
+      }
+      throw error;
+    }
+
+    this.eventEmitter.emit('PlayerRegistered', {
+      userId: user.id,
+      email: user.email,
+      username: user.username,
+    } satisfies PlayerRegisteredEvent);
 
     return this.toPublicUser(user);
   }
@@ -49,6 +79,10 @@ export class AuthService {
     if (!valid) {
       throw new UnauthorizedException('invalid credentials');
     }
+
+    this.eventEmitter.emit('PlayerLoggedIn', {
+      userId: user.id,
+    } satisfies PlayerLoggedInEvent);
 
     return this.toPublicUser(user);
   }

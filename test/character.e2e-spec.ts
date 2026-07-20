@@ -5,11 +5,13 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { createAgent, primeCsrfToken, registerUser } from './test-utils';
 
 describe('Character (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let redisClient: Redis;
+  let server: Parameters<typeof request>[0];
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -20,6 +22,7 @@ describe('Character (e2e)', () => {
     redisClient = configureApp(app);
     await app.init();
     prisma = moduleRef.get(PrismaService);
+    server = app.getHttpServer() as Parameters<typeof request>[0];
   });
 
   afterAll(async () => {
@@ -33,32 +36,35 @@ describe('Character (e2e)', () => {
     redisClient.disconnect();
   });
 
-  async function registerAndGetCookie(server: Parameters<typeof request>[0]) {
-    const email = `e2e-char-${Date.now()}-${Math.random()}@example.com`;
-    const username = `e2echar${Date.now()}${Math.floor(Math.random() * 1000)}`;
-    const res = await request(server)
-      .post('/auth/register')
-      .send({ email, username, password: 'correct horse battery staple' })
-      .expect(201);
-    return res.headers['set-cookie'] as unknown as string[];
+  async function registeredAgentWithCsrf() {
+    const agent = createAgent(server);
+    const csrfToken = await primeCsrfToken(agent);
+    await registerUser(agent, 'e2e-char');
+    return { agent, csrfToken };
   }
 
   it('rejects character creation without a session', async () => {
-    const server = app.getHttpServer() as Parameters<typeof request>[0];
     await request(server)
       .post('/characters')
       .send({ name: 'Nobody', archetype: 'DUELIST' })
       .expect(401);
   });
 
+  it('rejects character creation with a valid session but no CSRF token', async () => {
+    const { agent } = await registeredAgentWithCsrf();
+    await agent
+      .post('/characters')
+      .send({ name: 'NoCsrf', archetype: 'DUELIST' })
+      .expect(403);
+  });
+
   it('creates and then views a character for the logged-in account', async () => {
-    const server = app.getHttpServer() as Parameters<typeof request>[0];
-    const cookie = await registerAndGetCookie(server);
+    const { agent, csrfToken } = await registeredAgentWithCsrf();
     const name = `Hero${Date.now()}`;
 
-    const createRes = await request(server)
+    const createRes = await agent
       .post('/characters')
-      .set('Cookie', cookie)
+      .set('x-csrf-token', csrfToken)
       .send({ name, archetype: 'DUELIST' })
       .expect(201);
 
@@ -71,37 +77,29 @@ describe('Character (e2e)', () => {
     expect(createBody.body).toBe(5);
     expect(createBody.level).toBe(1);
 
-    const viewRes = await request(server)
-      .get('/characters/me')
-      .set('Cookie', cookie)
-      .expect(200);
+    const viewRes = await agent.get('/characters/me').expect(200);
     const viewBody = viewRes.body as { name: string };
     expect(viewBody.name).toBe(name);
   });
 
   it('rejects a second character on the same account', async () => {
-    const server = app.getHttpServer() as Parameters<typeof request>[0];
-    const cookie = await registerAndGetCookie(server);
+    const { agent, csrfToken } = await registeredAgentWithCsrf();
 
-    await request(server)
+    await agent
       .post('/characters')
-      .set('Cookie', cookie)
+      .set('x-csrf-token', csrfToken)
       .send({ name: `First${Date.now()}`, archetype: 'SCHOLAR' })
       .expect(201);
 
-    await request(server)
+    await agent
       .post('/characters')
-      .set('Cookie', cookie)
+      .set('x-csrf-token', csrfToken)
       .send({ name: `Second${Date.now()}`, archetype: 'SCHOLAR' })
       .expect(409);
   });
 
   it('returns 404 viewing a character before one exists', async () => {
-    const server = app.getHttpServer() as Parameters<typeof request>[0];
-    const cookie = await registerAndGetCookie(server);
-    await request(server)
-      .get('/characters/me')
-      .set('Cookie', cookie)
-      .expect(404);
+    const { agent } = await registeredAgentWithCsrf();
+    await agent.get('/characters/me').expect(404);
   });
 });

@@ -3,14 +3,32 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { applyXpGain } from '../character/leveling';
 import { PrismaService } from '../prisma/prisma.service';
 import { describeBattle, resolveBattle } from './combat-resolver';
 import { findMonster, MONSTERS } from './monsters';
 
+export interface BattleFinishedEvent {
+  userId: string;
+  characterId: string;
+  monsterId: string;
+  victory: boolean;
+  xpGained: number;
+}
+
+export interface PlayerLevelUpEvent {
+  userId: string;
+  characterId: string;
+  newLevel: number;
+}
+
 @Injectable()
 export class CombatService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   listMonsters() {
     return MONSTERS;
@@ -50,8 +68,11 @@ export class CombatService {
       ? xpResult.maxHp
       : Math.min(outcome.playerHpRemaining, xpResult.maxHp);
 
-    const updated = await this.prisma.character.update({
-      where: { userId },
+    // Conditional on actionPoints still being >= 1 at write time - closes
+    // a TOCTOU race where two concurrent fights could both pass the check
+    // above and both decrement, driving actionPoints negative.
+    const { count } = await this.prisma.character.updateMany({
+      where: { userId, actionPoints: { gte: 1 } },
       data: {
         hp: newHp,
         maxHp: xpResult.maxHp,
@@ -60,6 +81,32 @@ export class CombatService {
         actionPoints: { decrement: 1 },
       },
     });
+
+    if (count === 0) {
+      throw new ConflictException(
+        'not enough action points to fight - rest and come back later',
+      );
+    }
+
+    const updated = await this.prisma.character.findUniqueOrThrow({
+      where: { userId },
+    });
+
+    this.eventEmitter.emit('BattleFinished', {
+      userId,
+      characterId: character.id,
+      monsterId: monster.id,
+      victory: outcome.victory,
+      xpGained,
+    } satisfies BattleFinishedEvent);
+
+    if (xpResult.leveledUp) {
+      this.eventEmitter.emit('PlayerLevelUp', {
+        userId,
+        characterId: character.id,
+        newLevel: xpResult.level,
+      } satisfies PlayerLevelUpEvent);
+    }
 
     return {
       victory: outcome.victory,
