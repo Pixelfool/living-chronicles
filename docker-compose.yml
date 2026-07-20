@@ -33,7 +33,13 @@ services:
     build: .
     restart: unless-stopped
     environment:
-      NODE_ENV: production
+      # Secure cookies require NODE_ENV=production, which in turn requires a
+      # TLS-terminating reverse proxy in front of this container (not part
+      # of the v1 stack yet - see build-plan-v1.md §4, "Gated CI/CD..."/no
+      # Nginx layer). Until that exists, "production" here would silently
+      # break session auth (no Set-Cookie over plain HTTP). Flip this once
+      # TLS is actually in front of the app.
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3000
       DATABASE_URL: postgres://${POSTGRES_USER:-living_chronicles}:${POSTGRES_PASSWORD:-living_chronicles}@postgres:5432/${POSTGRES_DB:-living_chronicles}
       REDIS_URL: redis://redis:6379
