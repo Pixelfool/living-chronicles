@@ -99,10 +99,7 @@ describe('Auth (e2e)', () => {
     // A rejected CSRF check must not have torn down the session.
     await agent.get('/auth/me').expect(200);
 
-    await agent
-      .post('/auth/logout')
-      .set('x-csrf-token', csrfToken)
-      .expect(200);
+    await agent.post('/auth/logout').set('x-csrf-token', csrfToken).expect(200);
     await agent.get('/auth/me').expect(401);
   });
 });
