@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { ARCHETYPES } from './archetypes';
 import { CreateCharacterDto } from './dto/create-character.dto';
+import { maxHpForCharacter } from './leveling';
 
 @Injectable()
 export class CharacterService {
@@ -27,6 +28,7 @@ export class CharacterService {
     }
 
     const stats = ARCHETYPES[dto.archetype];
+    const maxHp = maxHpForCharacter(stats.body, 1);
     return this.prisma.character.create({
       data: {
         userId,
@@ -35,6 +37,8 @@ export class CharacterService {
         body: stats.body,
         mind: stats.mind,
         presence: stats.presence,
+        hp: maxHp,
+        maxHp,
       },
     });
   }
