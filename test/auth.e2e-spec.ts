@@ -5,6 +5,10 @@ import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
 import { PrismaService } from '../src/prisma/prisma.service';
 
+function uniqueSuffix(): string {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
+
 describe('Auth (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -29,8 +33,9 @@ describe('Auth (e2e)', () => {
 
   it('registers, sets a session cookie, and returns the user via /auth/me', async () => {
     const server = app.getHttpServer() as Parameters<typeof request>[0];
-    const email = `e2e-auth-${Date.now()}@example.com`;
-    const username = `e2eauth${Date.now()}`;
+    const suffix = uniqueSuffix();
+    const email = `e2e-auth-${suffix}@example.com`;
+    const username = `e2eauth${suffix}`;
     const password = 'correct horse battery staple';
 
     const registerRes = await request(server)
@@ -62,8 +67,9 @@ describe('Auth (e2e)', () => {
 
   it('rejects login with the wrong password', async () => {
     const server = app.getHttpServer() as Parameters<typeof request>[0];
-    const email = `e2e-auth-wrong-${Date.now()}@example.com`;
-    const username = `e2eauthwrong${Date.now()}`;
+    const suffix = uniqueSuffix();
+    const email = `e2e-auth-wrong-${suffix}@example.com`;
+    const username = `e2eauthwrong${suffix}`;
 
     await request(server)
       .post('/auth/register')
@@ -78,8 +84,9 @@ describe('Auth (e2e)', () => {
 
   it('rejects registering with a duplicate email or username', async () => {
     const server = app.getHttpServer() as Parameters<typeof request>[0];
-    const email = `e2e-auth-dup-${Date.now()}@example.com`;
-    const username = `e2eauthdup${Date.now()}`;
+    const suffix = uniqueSuffix();
+    const email = `e2e-auth-dup-${suffix}@example.com`;
+    const username = `e2edup${suffix}`;
 
     await request(server)
       .post('/auth/register')
@@ -90,7 +97,7 @@ describe('Auth (e2e)', () => {
       .post('/auth/register')
       .send({
         email,
-        username: `${username}other`,
+        username: `e2edup2${suffix}`,
         password: 'correct horse battery staple',
       })
       .expect(409);

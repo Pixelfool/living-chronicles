@@ -21,6 +21,9 @@ describe('Character (e2e)', () => {
   });
 
   afterAll(async () => {
+    await prisma.character.deleteMany({
+      where: { user: { email: { contains: 'e2e-char' } } },
+    });
     await prisma.user.deleteMany({
       where: { email: { contains: 'e2e-char' } },
     });
