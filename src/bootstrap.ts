@@ -1,5 +1,5 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { RedisStore } from 'connect-redis';
+import RedisStore from 'connect-redis';
 import session from 'express-session';
 import Redis from 'ioredis';
 
