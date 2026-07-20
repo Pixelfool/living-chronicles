@@ -21,9 +21,6 @@ export class WorldController {
 
   @Post('travel')
   travel(@Body() dto: TravelDto, @Req() req: Request) {
-    return this.worldService.travel(
-      req.session.userId as string,
-      dto.toCityId,
-    );
+    return this.worldService.travel(req.session.userId as string, dto.toCityId);
   }
 }

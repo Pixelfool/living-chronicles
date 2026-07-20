@@ -130,9 +130,9 @@ describe('World (e2e)', () => {
     expect(body.character.currentCityId).toBe('millbrook');
     // millbrook-path costs 1 action point
     expect(body.character.actionPoints).toBe(9);
-    expect(
-      body.encounter === null || typeof body.encounter === 'object',
-    ).toBe(true);
+    expect(body.encounter === null || typeof body.encounter === 'object').toBe(
+      true,
+    );
 
     const viewRes = await agent.get('/characters/me').expect(200);
     const viewBody = viewRes.body as { currentCityId: string };

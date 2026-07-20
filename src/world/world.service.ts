@@ -88,8 +88,12 @@ export class WorldService {
         route.monsterIds[Math.floor(Math.random() * route.monsterIds.length)];
       const monster = this.content.findMonster(monsterId);
       if (monster) {
-        const { outcome, xpGained, xpResult, newHp: hpAfterFight } =
-          resolveFight(character, monster);
+        const {
+          outcome,
+          xpGained,
+          xpResult,
+          newHp: hpAfterFight,
+        } = resolveFight(character, monster);
         newHp = hpAfterFight;
         newMaxHp = xpResult.maxHp;
         newLevel = xpResult.level;
