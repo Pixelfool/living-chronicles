@@ -4,10 +4,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { applyXpGain } from '../character/leveling';
+import { ContentService } from '../content/content.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { describeBattle, resolveBattle } from './combat-resolver';
-import { findMonster, MONSTERS } from './monsters';
+import { describeBattle, resolveFight } from './combat-resolver';
 
 export interface BattleFinishedEvent {
   userId: string;
@@ -27,15 +26,16 @@ export interface PlayerLevelUpEvent {
 export class CombatService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly content: ContentService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
   listMonsters() {
-    return MONSTERS;
+    return this.content.getMonsters();
   }
 
   async fight(userId: string, monsterId: string) {
-    const monster = findMonster(monsterId);
+    const monster = this.content.findMonster(monsterId);
     if (!monster) {
       throw new NotFoundException('no such monster');
     }
@@ -53,20 +53,10 @@ export class CombatService {
       );
     }
 
-    const outcome = resolveBattle(
-      { hp: character.hp, body: character.body },
+    const { outcome, xpGained, xpResult, newHp } = resolveFight(
+      character,
       monster,
     );
-
-    const xpGained = outcome.victory ? monster.xpReward : 0;
-    const xpResult = applyXpGain(
-      { level: character.level, xp: character.xp, body: character.body },
-      xpGained,
-    );
-
-    const newHp = xpResult.leveledUp
-      ? xpResult.maxHp
-      : Math.min(outcome.playerHpRemaining, xpResult.maxHp);
 
     // Conditional on actionPoints still being >= 1 at write time - closes
     // a TOCTOU race where two concurrent fights could both pass the check

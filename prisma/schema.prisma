@@ -40,6 +40,7 @@ model Character {
   maxHp           Int
   actionPoints    Int       @default(10)
   maxActionPoints Int       @default(10)
+  currentCityId   String
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

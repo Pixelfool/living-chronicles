@@ -1,0 +1,26 @@
+regions:
+  - id: ashford-road
+    name: The Ashford Road
+    description: >
+      A well-worn trade route, which is exactly why bandits keep working it.
+    cities: [haven, ashford]
+    travelCost: 2
+    monsterIds: [rat, bandit]
+    encounterChance: 0.4
+  - id: millbrook-path
+    name: The Millbrook Path
+    description: >
+      A short, mostly-safe walk between fields and fences.
+    cities: [haven, millbrook]
+    travelCost: 1
+    monsterIds: [rat]
+    encounterChance: 0.2
+  - id: old-millers-trail
+    name: The Old Miller's Trail
+    description: >
+      Overgrown since the Fracture. Something bigger than rats has moved
+      into the old mill.
+    cities: [ashford, millbrook]
+    travelCost: 2
+    monsterIds: [rat, direwolf]
+    encounterChance: 0.35

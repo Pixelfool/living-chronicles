@@ -7,8 +7,10 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { CharacterModule } from './character/character.module';
 import { CombatModule } from './combat/combat.module';
+import { ContentModule } from './content/content.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { WorldModule } from './world/world.module';
 
 @Module({
   imports: [
@@ -19,10 +21,12 @@ import { PrismaModule } from './prisma/prisma.module';
       throttlers: [{ ttl: 60_000, limit: 120 }],
     }),
     PrismaModule,
+    ContentModule,
     HealthModule,
     AuthModule,
     CharacterModule,
     CombatModule,
+    WorldModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

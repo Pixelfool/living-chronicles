@@ -85,7 +85,7 @@ describe('Combat (e2e)', () => {
       .post('/combat/fight')
       .set('x-csrf-token', csrfToken)
       .send({ monsterId: 'not-a-real-monster' })
-      .expect(400);
+      .expect(404);
   });
 
   it('fights a monster, consumes an action point, and returns a battle log', async () => {

@@ -1,4 +1,4 @@
-import { describeBattle, resolveBattle } from './combat-resolver';
+import { describeBattle, resolveBattle, resolveFight } from './combat-resolver';
 
 describe('resolveBattle', () => {
   it('the player always wins against a trivially weak monster', () => {
@@ -42,6 +42,38 @@ describe('resolveBattle', () => {
       rng,
     );
     expect(outcome.rounds.length).toBeLessThanOrEqual(40);
+  });
+});
+
+describe('resolveFight', () => {
+  it('awards xp and clamps hp to the (possibly new) max on a win', () => {
+    const result = resolveFight(
+      { hp: 10, body: 20, level: 1, xp: 0 },
+      { hp: 1, attack: 0, defense: 0, xpReward: 15 },
+    );
+    expect(result.outcome.victory).toBe(true);
+    expect(result.xpGained).toBe(15);
+    expect(result.xpResult.xp).toBe(15);
+    expect(result.newHp).toBeLessThanOrEqual(result.xpResult.maxHp);
+  });
+
+  it('awards no xp and clamps hp at 1 on a loss', () => {
+    const result = resolveFight(
+      { hp: 1, body: 1, level: 1, xp: 0 },
+      { hp: 1000, attack: 1000, defense: 0, xpReward: 999 },
+    );
+    expect(result.outcome.victory).toBe(false);
+    expect(result.xpGained).toBe(0);
+    expect(result.newHp).toBe(1);
+  });
+
+  it('fully heals on a level-up', () => {
+    const result = resolveFight(
+      { hp: 5, body: 20, level: 1, xp: 95 },
+      { hp: 1, attack: 0, defense: 0, xpReward: 15 },
+    );
+    expect(result.xpResult.leveledUp).toBe(true);
+    expect(result.newHp).toBe(result.xpResult.maxHp);
   });
 });
 

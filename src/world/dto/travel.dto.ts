@@ -1,6 +1,6 @@
 import { IsString } from 'class-validator';
 
-export class FightDto {
+export class TravelDto {
   @IsString()
-  monsterId: string;
+  toCityId: string;
 }

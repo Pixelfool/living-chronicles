@@ -4,6 +4,8 @@
  * combat exists to feed the rest of the game, not to be a deep system in
  * its own right.
  */
+import { applyXpGain, XpGainResult } from '../character/leveling';
+
 const MAX_ROUNDS = 20;
 
 export interface BattleRound {
@@ -100,4 +102,41 @@ export function describeBattle(
   }
 
   return lines;
+}
+
+export interface ResolvedFight {
+  outcome: BattleOutcome;
+  xpGained: number;
+  xpResult: XpGainResult;
+  newHp: number;
+}
+
+/**
+ * Composes resolveBattle + applyXpGain + hp-clamping into the single
+ * "what happens when this character fights this monster" computation.
+ * Shared by CombatService.fight() and the World module's in-transit
+ * encounters so the two don't duplicate this logic.
+ */
+export function resolveFight(
+  character: { hp: number; body: number; level: number; xp: number },
+  monster: { hp: number; attack: number; defense: number; xpReward: number },
+  rng: () => number = Math.random,
+): ResolvedFight {
+  const outcome = resolveBattle(
+    { hp: character.hp, body: character.body },
+    monster,
+    rng,
+  );
+
+  const xpGained = outcome.victory ? monster.xpReward : 0;
+  const xpResult = applyXpGain(
+    { level: character.level, xp: character.xp, body: character.body },
+    xpGained,
+  );
+
+  const newHp = xpResult.leveledUp
+    ? xpResult.maxHp
+    : Math.min(outcome.playerHpRemaining, xpResult.maxHp);
+
+  return { outcome, xpGained, xpResult, newHp };
 }

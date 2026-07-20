@@ -1,0 +1,20 @@
+cities:
+  - id: haven
+    name: Haven
+    description: >
+      The last steady ground since the Fracture. Refugees, traders, and
+      the merely curious all end up here sooner or later - it's the one
+      place that never quite stopped feeling like a city.
+    startingCity: true
+  - id: ashford
+    name: Ashford
+    description: >
+      A fortified frontier town built hard against the ruins. Half its
+      economy is monster hunters selling proof of their kills; the other
+      half is people selling them gear to go do it again.
+  - id: millbrook
+    name: Millbrook
+    description: >
+      A farming town that mostly missed the worst of the Fracture. Quiet,
+      practical, and increasingly the only reason Haven and Ashford eat
+      regularly.

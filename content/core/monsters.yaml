@@ -1,0 +1,22 @@
+monsters:
+  - id: rat
+    name: Sewer Rat
+    hp: 10
+    attack: 2
+    defense: 0
+    xpReward: 15
+    blurb: Small, fast, and unreasonably angry.
+  - id: bandit
+    name: Highway Bandit
+    hp: 20
+    attack: 4
+    defense: 1
+    xpReward: 35
+    blurb: Wants your coin purse more than your life, but will settle for either.
+  - id: direwolf
+    name: Direwolf
+    hp: 35
+    attack: 6
+    defense: 2
+    xpReward: 60
+    blurb: Bigger than it has any right to be.

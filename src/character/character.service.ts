@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ContentService } from '../content/content.service';
 import { isUniqueConstraintViolation } from '../prisma/prisma.errors';
 import { PrismaService } from '../prisma/prisma.service';
 import { ArchetypeKey, ARCHETYPES } from './archetypes';
@@ -22,6 +23,7 @@ export class CharacterService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly content: ContentService,
   ) {}
 
   async createForUser(userId: string, dto: CreateCharacterDto) {
@@ -54,6 +56,7 @@ export class CharacterService {
           presence: stats.presence,
           hp: maxHp,
           maxHp,
+          currentCityId: this.content.getStartingCityId(),
         },
       });
     } catch (error) {
