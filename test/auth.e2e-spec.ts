@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import Redis from 'ioredis';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
@@ -12,6 +13,7 @@ function uniqueSuffix(): string {
 describe('Auth (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let redisClient: Redis;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -19,7 +21,7 @@ describe('Auth (e2e)', () => {
     }).compile();
 
     app = moduleRef.createNestApplication();
-    configureApp(app);
+    redisClient = configureApp(app);
     await app.init();
     prisma = moduleRef.get(PrismaService);
   });
@@ -29,6 +31,7 @@ describe('Auth (e2e)', () => {
       where: { email: { contains: 'e2e-auth' } },
     });
     await app.close();
+    redisClient.disconnect();
   });
 
   it('registers, sets a session cookie, and returns the user via /auth/me', async () => {

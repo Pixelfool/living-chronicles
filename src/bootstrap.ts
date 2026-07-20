@@ -8,7 +8,7 @@ import Redis from 'ioredis';
  * used by both the real bootstrap (main.ts) and e2e tests, so the two
  * never drift apart.
  */
-export function configureApp(app: INestApplication): void {
+export function configureApp(app: INestApplication): Redis {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -36,4 +36,6 @@ export function configureApp(app: INestApplication): void {
       },
     }),
   );
+
+  return redisClient;
 }

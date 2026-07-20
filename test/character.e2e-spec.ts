@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import Redis from 'ioredis';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
@@ -8,6 +9,7 @@ import { PrismaService } from '../src/prisma/prisma.service';
 describe('Character (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let redisClient: Redis;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -15,7 +17,7 @@ describe('Character (e2e)', () => {
     }).compile();
 
     app = moduleRef.createNestApplication();
-    configureApp(app);
+    redisClient = configureApp(app);
     await app.init();
     prisma = moduleRef.get(PrismaService);
   });
@@ -28,6 +30,7 @@ describe('Character (e2e)', () => {
       where: { email: { contains: 'e2e-char' } },
     });
     await app.close();
+    redisClient.disconnect();
   });
 
   async function registerAndGetCookie(server: Parameters<typeof request>[0]) {
