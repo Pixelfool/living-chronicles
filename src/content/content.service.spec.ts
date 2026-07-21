@@ -26,6 +26,7 @@ describe('ContentService (real content pack)', () => {
     expect(monsters.map((m) => m.id).sort()).toEqual([
       'bandit',
       'direwolf',
+      'millbrook-thing',
       'rat',
     ]);
   });
@@ -159,6 +160,43 @@ describe('ContentService (real content pack)', () => {
     for (const quest of content.getQuests()) {
       const npc = content.findNpc(quest.giverNpcId);
       expect(npc && content.getCity(npc.cityId)).toBeDefined();
+    }
+  });
+
+  it('loads the dungeon roster', () => {
+    expect(
+      content
+        .getDungeons()
+        .map((d) => d.id)
+        .sort(),
+    ).toEqual(['old-mill-depths']);
+  });
+
+  it('resolves every dungeon city, beat monster, and reward reference', () => {
+    for (const dungeon of content.getDungeons()) {
+      expect(content.getCity(dungeon.cityId)).toBeDefined();
+      for (const beat of dungeon.beats) {
+        if (beat.kind === 'COMBAT' || beat.kind === 'BOSS') {
+          expect(content.findMonster(beat.monsterId)).toBeDefined();
+        }
+      }
+      for (const itemId of dungeon.rewardItemIds) {
+        expect(content.findItem(itemId)).toBeDefined();
+      }
+    }
+  });
+
+  it('gives every dungeon at least one beat and a flavor line for every preparedness tier', () => {
+    for (const dungeon of content.getDungeons()) {
+      expect(dungeon.beats.length).toBeGreaterThan(0);
+      for (const tier of [
+        'CONFIDENT',
+        'STEADY',
+        'UNEASY',
+        'DESPERATE',
+      ] as const) {
+        expect(dungeon.preparednessFlavor[tier].length).toBeGreaterThan(0);
+      }
     }
   });
 });

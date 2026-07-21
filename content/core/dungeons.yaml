@@ -1,0 +1,31 @@
+dungeons:
+  - id: old-mill-depths
+    name: The Old Mill Depths
+    cityId: millbrook
+    minLevel: 3
+    entryCost: 3
+    rumor: >
+      Two came back from the Mill last week. One hasn't said much since.
+    beats:
+      - kind: DISCOVERY
+        text: >
+          The wheel's stopped turning. The mud by the door hasn't dried -
+          someone, or something, has been down here recently.
+      - kind: COMBAT
+        monsterId: direwolf
+      - kind: COMBAT
+        monsterId: direwolf
+      - kind: BOSS
+        monsterId: millbrook-thing
+        text: "Something bigger than a wolf moved in when the rats left."
+    rewardItemIds: [wolf-fang]
+    rewardGold: 40
+    preparednessFlavor:
+      CONFIDENT:
+        - "Your blade's freshly sharpened and your pack is heavy with bandages. You feel ready for whatever's down there."
+      STEADY:
+        - "You've got what you need. It'll do."
+      UNEASY:
+        - "That cut from Tuesday never quite closed."
+      DESPERATE:
+        - "Your last potion's long gone, and you go in anyway."

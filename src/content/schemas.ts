@@ -186,3 +186,58 @@ export type Quest = z.infer<typeof QuestSchema>;
 export const QuestsFileSchema = z.object({
   quests: z.array(QuestSchema),
 });
+
+// Beats, not stages: combat is one tool a dungeon uses, not its identity
+// (M11 design discussion, game-design.md §8). A DISCOVERY beat is pure
+// authored flavor with no fight and no reward of its own; COMBAT/BOSS
+// beats resolve through the same resolveFight() every other fight in the
+// game uses and emit the same BattleFinished event, so nothing downstream
+// (Quests' KILL_MONSTER objectives, future Achievements) needs to know or
+// care that a kill happened inside a dungeon rather than on the road.
+export const DungeonBeatSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('DISCOVERY'), text: z.string() }),
+  z.object({ kind: z.literal('COMBAT'), monsterId: z.string() }),
+  z.object({
+    kind: z.literal('BOSS'),
+    monsterId: z.string(),
+    text: z.string().optional(),
+  }),
+]);
+export type DungeonBeat = z.infer<typeof DungeonBeatSchema>;
+
+// The only vocabulary a caller outside dungeon-resolver.ts ever sees for
+// "how prepared does this look" - a closed, named tier, never a raw score
+// (architecture.md §4.13: the domain produces a fact, content owns the
+// words describing it).
+export const PreparednessTierSchema = z.enum([
+  'CONFIDENT',
+  'STEADY',
+  'UNEASY',
+  'DESPERATE',
+]);
+export type PreparednessTier = z.infer<typeof PreparednessTierSchema>;
+
+export const DungeonSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  cityId: z.string(),
+  minLevel: z.number().int().nonnegative().default(0),
+  entryCost: z.number().int().positive(),
+  rumor: z.string(),
+  beats: z.array(DungeonBeatSchema).min(1),
+  rewardItemIds: z.array(z.string()).default([]),
+  rewardGold: z.number().int().nonnegative().default(0),
+  // One non-empty pool of flavor lines per tier - content's job, not the
+  // domain's, to say anything at all (architecture.md §4.13).
+  preparednessFlavor: z.object({
+    CONFIDENT: z.array(z.string()).min(1),
+    STEADY: z.array(z.string()).min(1),
+    UNEASY: z.array(z.string()).min(1),
+    DESPERATE: z.array(z.string()).min(1),
+  }),
+});
+export type Dungeon = z.infer<typeof DungeonSchema>;
+
+export const DungeonsFileSchema = z.object({
+  dungeons: z.array(DungeonSchema),
+});

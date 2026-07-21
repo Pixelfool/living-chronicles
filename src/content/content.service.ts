@@ -5,6 +5,8 @@ import { parse } from 'yaml';
 import {
   CitiesFileSchema,
   City,
+  Dungeon,
+  DungeonsFileSchema,
   Item,
   ItemsFileSchema,
   MonstersFileSchema,
@@ -48,6 +50,7 @@ export class ContentService implements OnModuleInit {
   private recipes = new Map<string, Recipe>();
   private npcs = new Map<string, Npc>();
   private quests = new Map<string, Quest>();
+  private dungeons = new Map<string, Dungeon>();
   private startingCityId!: string;
 
   onModuleInit(): void {
@@ -68,6 +71,9 @@ export class ContentService implements OnModuleInit {
     const recipesFile = RecipesFileSchema.parse(this.readYaml('recipes.yaml'));
     const npcsFile = NpcsFileSchema.parse(this.readYaml('npcs.yaml'));
     const questsFile = QuestsFileSchema.parse(this.readYaml('quests.yaml'));
+    const dungeonsFile = DungeonsFileSchema.parse(
+      this.readYaml('dungeons.yaml'),
+    );
 
     const cities = new Map<string, City>();
     for (const city of citiesFile.cities) {
@@ -261,6 +267,47 @@ export class ContentService implements OnModuleInit {
       }
     }
 
+    const dungeons = new Map<string, Dungeon>();
+    for (const dungeon of dungeonsFile.dungeons) {
+      if (dungeons.has(dungeon.id)) {
+        throw new Error(
+          `duplicate dungeon id in content pack: "${dungeon.id}"`,
+        );
+      }
+      // "current" is a reserved path segment (GET/POST .../dungeons/current
+      // means "my active expedition", not a dungeon lookup) - a content
+      // pack using it as a dungeon id would silently make that dungeon
+      // unreachable by id and shadow the current-run endpoints instead.
+      if (dungeon.id === 'current') {
+        throw new Error(
+          `dungeon id "current" is reserved by the API and cannot be used as a content id`,
+        );
+      }
+      if (!cities.has(dungeon.cityId)) {
+        throw new Error(
+          `dungeon "${dungeon.id}" references unknown city "${dungeon.cityId}"`,
+        );
+      }
+      for (const beat of dungeon.beats) {
+        if (
+          (beat.kind === 'COMBAT' || beat.kind === 'BOSS') &&
+          !monsters.has(beat.monsterId)
+        ) {
+          throw new Error(
+            `dungeon "${dungeon.id}" beat references unknown monster "${beat.monsterId}"`,
+          );
+        }
+      }
+      for (const itemId of dungeon.rewardItemIds) {
+        if (!items.has(itemId)) {
+          throw new Error(
+            `dungeon "${dungeon.id}" reward references unknown item "${itemId}"`,
+          );
+        }
+      }
+      dungeons.set(dungeon.id, dungeon);
+    }
+
     this.cities = cities;
     this.monsters = monsters;
     this.items = items;
@@ -270,10 +317,11 @@ export class ContentService implements OnModuleInit {
     this.recipes = recipes;
     this.npcs = npcs;
     this.quests = quests;
+    this.dungeons = dungeons;
     this.startingCityId = startingCities[0].id;
 
     this.logger.log(
-      `Loaded content pack: ${this.cities.size} cities, ${this.regions.length} regions, ${this.monsters.size} monsters, ${this.items.size} items, ${this.shops.size} shops, ${this.professions.size} professions, ${this.recipes.size} recipes, ${this.npcs.size} npcs, ${this.quests.size} quests`,
+      `Loaded content pack: ${this.cities.size} cities, ${this.regions.length} regions, ${this.monsters.size} monsters, ${this.items.size} items, ${this.shops.size} shops, ${this.professions.size} professions, ${this.recipes.size} recipes, ${this.npcs.size} npcs, ${this.quests.size} quests, ${this.dungeons.size} dungeons`,
     );
   }
 
@@ -354,5 +402,13 @@ export class ContentService implements OnModuleInit {
 
   findQuest(id: string): Quest | undefined {
     return this.quests.get(id);
+  }
+
+  getDungeons(): Dungeon[] {
+    return [...this.dungeons.values()];
+  }
+
+  findDungeon(id: string): Dungeon | undefined {
+    return this.dungeons.get(id);
   }
 }

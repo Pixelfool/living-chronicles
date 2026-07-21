@@ -99,11 +99,12 @@ Each milestone still ends in something playable, per `architecture.md` §14 — 
 | M8 | Crafting & professions | Craft from gathered materials | New user-facing strings avoid concatenation per §1 item 5 (ADR-0001) |
 | M9 | Quests | Accept and complete a quest line | — |
 | M10 | PvP | Fight another player, server-resolved | — |
-| M11 | Dungeons & world events | Clear a multi-stage dungeon | — |
-| M12 | Achievements & leaderboards | Unlock an achievement, see a ranking | — |
-| M13 | Minimal admin tooling | Manual ban/mute via direct DB access or a small internal script | Account deletion/export (§3) must exist by here at the latest — sooner if any real user has registered |
-| M14 | Polish, public beta | Public-facing launch | **Before this milestone:** run the load-testing pass (§4) and decide, with data, whether vertical scaling is enough. Natural point to reconsider dependency-cruiser and gated CI if inviting outside contributors |
-| M15+ | Post-launch | — | This is where "plugin-ready becomes plugin-complete" is a real decision, made with actual player/contributor demand in hand — not a guess. Revisit §4's plugin loader, multi-pack content, and event-bus hardening as an actual project, using the design in `architecture.md` that's been sitting ready since before you needed it |
+| M11 | Dungeons | Clear a multi-stage dungeon | Went through a full gameplay-first design cycle (dungeons as an authored expedition, not a fight sequence — see `game-design.md` §1/§8, `architecture.md` §4.13) before any schema was written |
+| M12 | World Events | A server-wide, time-bound moment players can see and react to | Split out of the original M11 grouping once dungeon design work showed the two share a milestone number but not a technical dependency — the original grouping was administrative, not architectural. World Events has not yet been through its own gameplay-first design cycle; that happens before this milestone's domain model is drafted, not before |
+| M13 | Achievements & leaderboards | Unlock an achievement, see a ranking | — |
+| M14 | Minimal admin tooling | Manual ban/mute via direct DB access or a small internal script | Account deletion/export (§3) must exist by here at the latest — sooner if any real user has registered |
+| M15 | Polish, public beta | Public-facing launch | **Before this milestone:** run the load-testing pass (§4) and decide, with data, whether vertical scaling is enough. Natural point to reconsider dependency-cruiser and gated CI if inviting outside contributors |
+| M16+ | Post-launch | — | This is where "plugin-ready becomes plugin-complete" is a real decision, made with actual player/contributor demand in hand — not a guess. Revisit §4's plugin loader, multi-pack content, and event-bus hardening as an actual project, using the design in `architecture.md` that's been sitting ready since before you needed it |
 
 ---
 

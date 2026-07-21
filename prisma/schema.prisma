@@ -119,6 +119,7 @@ model Character {
   duelistOathRenounceRequestedAt DateTime?
   duelsAsAttacker Duel[] @relation("DuelsAsAttacker")
   duelsAsDefender Duel[] @relation("DuelsAsDefender")
+  dungeonRuns     DungeonRun[]
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -344,4 +345,38 @@ model Duel {
   @@index([attackerCharacterId, createdAt])
   @@index([defenderCharacterId, createdAt])
   @@map("duels")
+}
+
+enum DungeonRunStatus {
+  IN_PROGRESS
+  CLEARED
+  RETREATED
+}
+
+// Presence-shaped in-progress state (M11 design discussion), not a
+// commitment like QuestProgress or CraftingJob: nothing ever advances this
+// row on its own - no cron, no timer, no background process. It changes
+// only in direct response to an explicit player action (advance/retreat).
+// It persists because the server is authoritative over where a character
+// currently stands mid-expedition and has to remember that between
+// requests - not because resuming an expedition days later is a feature
+// worth designing for. retreat() is always callable regardless of how
+// long a run has sat IN_PROGRESS, specifically so an abandoned expedition
+// never becomes a permanent lock against entering anywhere else. No
+// FAILED status: combat can't actually end a character (see
+// combat-resolver.ts's HP-clamped-at-1 behavior), so a dungeon run only
+// ever ends by reaching the last beat (CLEARED) or by the player choosing
+// to stop (RETREATED).
+model DungeonRun {
+  id           String           @id @default(uuid())
+  characterId  String
+  character    Character        @relation(fields: [characterId], references: [id])
+  dungeonId    String
+  status       DungeonRunStatus @default(IN_PROGRESS)
+  currentBeat  Int              @default(0)
+  startedAt    DateTime         @default(now())
+  resolvedAt   DateTime?
+
+  @@index([characterId, status])
+  @@map("dungeon_runs")
 }
