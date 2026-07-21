@@ -5,7 +5,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { isUniqueConstraintViolation } from '../prisma/prisma.errors';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface FriendRequestSentEvent {
@@ -60,19 +59,21 @@ export class FriendsService {
       );
     }
 
-    let request;
-    try {
-      request = await this.prisma.friendRequest.create({
-        data: { requesterId: userId, addresseeId: target.id },
-      });
-    } catch (error) {
-      if (isUniqueConstraintViolation(error)) {
-        throw new ConflictException(
-          'a friend request already exists between you two',
-        );
-      }
-      throw error;
-    }
+    // Upsert rather than plain create: a prior DECLINED row for this exact
+    // (requester, addressee) pair would otherwise permanently collide with
+    // the @@unique constraint on any later re-request, blocking two
+    // players from ever friending each other again after a single decline.
+    // Reset createdAt too so the request sorts as fresh in list().
+    const request = await this.prisma.friendRequest.upsert({
+      where: {
+        requesterId_addresseeId: {
+          requesterId: userId,
+          addresseeId: target.id,
+        },
+      },
+      create: { requesterId: userId, addresseeId: target.id },
+      update: { status: 'PENDING', createdAt: new Date() },
+    });
 
     this.eventEmitter.emit('FriendRequestSent', {
       requestId: request.id,

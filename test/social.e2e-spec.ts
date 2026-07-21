@@ -79,6 +79,27 @@ describe('Social (e2e)', () => {
     const a = await player('e2e-social-a');
     const b = await player('e2e-social-b');
 
+    // Decline, then re-request: the unique constraint on (requesterId,
+    // addresseeId) must not permanently block a pair from ever friending
+    // each other again after a single decline.
+    await a.agent
+      .post('/social/friends/requests')
+      .set('x-csrf-token', a.csrfToken)
+      .send({ username: b.user.username })
+      .expect(201);
+
+    const declineList = await b.agent.get('/social/friends').expect(200);
+    const declineListBody = declineList.body as {
+      incoming: { requestId: string; username: string }[];
+    };
+    const declineRequestId = declineListBody.incoming.find(
+      (r) => r.username === a.user.username,
+    )?.requestId;
+    await b.agent
+      .post(`/social/friends/requests/${declineRequestId}/decline`)
+      .set('x-csrf-token', b.csrfToken)
+      .expect(200);
+
     await a.agent
       .post('/social/friends/requests')
       .set('x-csrf-token', a.csrfToken)
