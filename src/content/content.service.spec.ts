@@ -70,4 +70,16 @@ describe('ContentService (real content pack)', () => {
       }
     }
   });
+
+  it('resolves every item referenced by every shop', () => {
+    for (const city of content.getCities()) {
+      const shop = content.getShop(city.id);
+      if (!shop) {
+        continue;
+      }
+      for (const itemId of shop.itemIds) {
+        expect(content.findItem(itemId)).toBeDefined();
+      }
+    }
+  });
 });
