@@ -115,4 +115,50 @@ describe('ContentService (real content pack)', () => {
       }
     }
   });
+
+  it('loads the quest roster as a single linear chain', () => {
+    const quests = content.getQuests();
+    expect(quests.map((q) => q.id).sort()).toEqual([
+      'highwaymen',
+      'rat-problem',
+      'the-ashford-road',
+    ]);
+    expect(content.findQuest('rat-problem')?.requiresQuestId).toBeUndefined();
+    expect(content.findQuest('the-ashford-road')?.requiresQuestId).toBe(
+      'rat-problem',
+    );
+    expect(content.findQuest('highwaymen')?.requiresQuestId).toBe(
+      'the-ashford-road',
+    );
+  });
+
+  it('resolves every quest giver, prerequisite, and objective/reward reference', () => {
+    for (const quest of content.getQuests()) {
+      expect(content.findNpc(quest.giverNpcId)).toBeDefined();
+      if (quest.requiresQuestId) {
+        expect(content.findQuest(quest.requiresQuestId)).toBeDefined();
+      }
+      for (const objective of quest.objectives) {
+        if (objective.kind === 'KILL_MONSTER') {
+          expect(content.findMonster(objective.monsterId)).toBeDefined();
+        }
+        if (objective.kind === 'COLLECT_ITEM') {
+          expect(content.findItem(objective.itemId)).toBeDefined();
+        }
+        if (objective.kind === 'REACH_CITY') {
+          expect(content.getCity(objective.cityId)).toBeDefined();
+        }
+      }
+      for (const itemId of quest.rewardItemIds) {
+        expect(content.findItem(itemId)).toBeDefined();
+      }
+    }
+  });
+
+  it('resolves every npc to a real city', () => {
+    for (const quest of content.getQuests()) {
+      const npc = content.findNpc(quest.giverNpcId);
+      expect(npc && content.getCity(npc.cityId)).toBeDefined();
+    }
+  });
 });

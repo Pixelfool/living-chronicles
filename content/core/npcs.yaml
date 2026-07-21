@@ -1,0 +1,13 @@
+npcs:
+  - id: old-bram
+    name: Old Bram
+    cityId: haven
+    blurb: >
+      Sits by the Haven gate most days, muttering about rats and worse
+      things. Somehow always knows who just got back from the road.
+  - id: rennick
+    name: Rennick
+    cityId: ashford
+    blurb: >
+      A monster hunter who never quite stopped hunting. Ashford's proof-of-kill
+      economy runs through her more than anyone would admit.

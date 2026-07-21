@@ -128,3 +128,61 @@ export type Recipe = z.infer<typeof RecipeSchema>;
 export const RecipesFileSchema = z.object({
   recipes: z.array(RecipeSchema),
 });
+
+export const NpcSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  cityId: z.string(),
+  blurb: z.string(),
+});
+export type Npc = z.infer<typeof NpcSchema>;
+
+export const NpcsFileSchema = z.object({
+  npcs: z.array(NpcSchema),
+});
+
+// Fixed, strongly-typed objective kinds (M9 design discussion: no
+// condition/scripting language - a closed set that maps directly onto
+// events already in the domain event catalog, so quest progress can be
+// driven entirely by subscribing to those events rather than inventing a
+// second way to describe "something happened").
+export const QuestObjectiveSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('KILL_MONSTER'),
+    monsterId: z.string(),
+    count: z.number().int().positive(),
+  }),
+  z.object({
+    kind: z.literal('COLLECT_ITEM'),
+    itemId: z.string(),
+    count: z.number().int().positive(),
+  }),
+  z.object({
+    kind: z.literal('REACH_CITY'),
+    cityId: z.string(),
+  }),
+]);
+export type QuestObjective = z.infer<typeof QuestObjectiveSchema>;
+
+// Deliberately does NOT carry a list of quest ids on the giver NPC -
+// quests reference their giver (giverNpcId), not the other way around, so
+// a plugin can add a new quest for an existing core NPC without touching
+// that NPC's own definition (M9 design discussion).
+export const QuestSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  giverNpcId: z.string(),
+  // Linear chains only for M9: at most one prerequisite, no branching.
+  requiresQuestId: z.string().optional(),
+  minLevel: z.number().int().nonnegative().default(0),
+  objectives: z.array(QuestObjectiveSchema).min(1),
+  rewardXp: z.number().int().nonnegative().default(0),
+  rewardGold: z.number().int().nonnegative().default(0),
+  rewardItemIds: z.array(z.string()).default([]),
+  blurb: z.string(),
+});
+export type Quest = z.infer<typeof QuestSchema>;
+
+export const QuestsFileSchema = z.object({
+  quests: z.array(QuestSchema),
+});

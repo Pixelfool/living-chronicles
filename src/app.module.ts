@@ -14,6 +14,7 @@ import { GuildsModule } from './guilds/guilds.module';
 import { HealthModule } from './health/health.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { QuestsModule } from './quests/quests.module';
 import { SocialModule } from './social/social.module';
 import { WorldModule } from './world/world.module';
 
@@ -37,6 +38,7 @@ import { WorldModule } from './world/world.module';
     GuildsModule,
     EconomyModule,
     CraftingModule,
+    QuestsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

@@ -1,0 +1,48 @@
+quests:
+  - id: rat-problem
+    name: Rat Problem
+    giverNpcId: old-bram
+    minLevel: 0
+    objectives:
+      - kind: KILL_MONSTER
+        monsterId: rat
+        count: 3
+    rewardXp: 20
+    rewardGold: 10
+    rewardItemIds: []
+    blurb: >
+      "Sewer rats are getting bold again. Thin their numbers on the road
+      and there's coin in it for you."
+  - id: the-ashford-road
+    name: The Ashford Road
+    giverNpcId: old-bram
+    requiresQuestId: rat-problem
+    minLevel: 0
+    objectives:
+      - kind: REACH_CITY
+        cityId: ashford
+    rewardXp: 15
+    rewardGold: 5
+    rewardItemIds: []
+    blurb: >
+      "Ashford could use word that the road's still passable. Walk it
+      yourself and come back - or don't, and just tell them there."
+  - id: highwaymen
+    name: Highwaymen
+    giverNpcId: rennick
+    requiresQuestId: the-ashford-road
+    minLevel: 0
+    objectives:
+      - kind: KILL_MONSTER
+        monsterId: bandit
+        count: 2
+      - kind: COLLECT_ITEM
+        itemId: scrap-metal
+        count: 3
+    rewardXp: 50
+    rewardGold: 25
+    rewardItemIds:
+      - rusty-sword
+    blurb: >
+      "Bandits on the Ashford Road, same as always. Bring me proof, and
+      whatever scrap you can strip off them - I know a smith who pays."

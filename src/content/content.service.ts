@@ -9,8 +9,12 @@ import {
   ItemsFileSchema,
   MonstersFileSchema,
   Monster,
+  Npc,
+  NpcsFileSchema,
   Profession,
   ProfessionsFileSchema,
+  Quest,
+  QuestsFileSchema,
   Recipe,
   RecipesFileSchema,
   RegionsFileSchema,
@@ -42,6 +46,8 @@ export class ContentService implements OnModuleInit {
   private shops = new Map<string, Shop>();
   private professions = new Map<string, Profession>();
   private recipes = new Map<string, Recipe>();
+  private npcs = new Map<string, Npc>();
+  private quests = new Map<string, Quest>();
   private startingCityId!: string;
 
   onModuleInit(): void {
@@ -60,6 +66,8 @@ export class ContentService implements OnModuleInit {
       this.readYaml('professions.yaml'),
     );
     const recipesFile = RecipesFileSchema.parse(this.readYaml('recipes.yaml'));
+    const npcsFile = NpcsFileSchema.parse(this.readYaml('npcs.yaml'));
+    const questsFile = QuestsFileSchema.parse(this.readYaml('quests.yaml'));
 
     const cities = new Map<string, City>();
     for (const city of citiesFile.cities) {
@@ -175,6 +183,84 @@ export class ContentService implements OnModuleInit {
       recipes.set(recipe.id, recipe);
     }
 
+    const npcs = new Map<string, Npc>();
+    for (const npc of npcsFile.npcs) {
+      if (npcs.has(npc.id)) {
+        throw new Error(`duplicate npc id in content pack: "${npc.id}"`);
+      }
+      if (!cities.has(npc.cityId)) {
+        throw new Error(
+          `npc "${npc.id}" references unknown city "${npc.cityId}"`,
+        );
+      }
+      npcs.set(npc.id, npc);
+    }
+
+    const quests = new Map<string, Quest>();
+    for (const quest of questsFile.quests) {
+      if (quests.has(quest.id)) {
+        throw new Error(`duplicate quest id in content pack: "${quest.id}"`);
+      }
+      if (!npcs.has(quest.giverNpcId)) {
+        throw new Error(
+          `quest "${quest.id}" references unknown giver npc "${quest.giverNpcId}"`,
+        );
+      }
+      for (const objective of quest.objectives) {
+        if (
+          objective.kind === 'KILL_MONSTER' &&
+          !monsters.has(objective.monsterId)
+        ) {
+          throw new Error(
+            `quest "${quest.id}" objective references unknown monster "${objective.monsterId}"`,
+          );
+        }
+        if (objective.kind === 'COLLECT_ITEM' && !items.has(objective.itemId)) {
+          throw new Error(
+            `quest "${quest.id}" objective references unknown item "${objective.itemId}"`,
+          );
+        }
+        if (objective.kind === 'REACH_CITY' && !cities.has(objective.cityId)) {
+          throw new Error(
+            `quest "${quest.id}" objective references unknown city "${objective.cityId}"`,
+          );
+        }
+      }
+      for (const itemId of quest.rewardItemIds) {
+        if (!items.has(itemId)) {
+          throw new Error(
+            `quest "${quest.id}" reward references unknown item "${itemId}"`,
+          );
+        }
+      }
+      quests.set(quest.id, quest);
+    }
+    // requiresQuestId is validated in a second pass, once every quest id is
+    // known - a prerequisite may be defined later in the same file, and a
+    // chain also needs to be checked for cycles as a whole, not just
+    // "does this one id exist".
+    for (const quest of quests.values()) {
+      if (!quest.requiresQuestId) {
+        continue;
+      }
+      if (!quests.has(quest.requiresQuestId)) {
+        throw new Error(
+          `quest "${quest.id}" requires unknown quest "${quest.requiresQuestId}"`,
+        );
+      }
+      const chain = new Set<string>([quest.id]);
+      let current: Quest | undefined = quest;
+      while (current?.requiresQuestId) {
+        if (chain.has(current.requiresQuestId)) {
+          throw new Error(
+            `quest prerequisite cycle detected involving "${quest.id}"`,
+          );
+        }
+        chain.add(current.requiresQuestId);
+        current = quests.get(current.requiresQuestId);
+      }
+    }
+
     this.cities = cities;
     this.monsters = monsters;
     this.items = items;
@@ -182,10 +268,12 @@ export class ContentService implements OnModuleInit {
     this.shops = shops;
     this.professions = professions;
     this.recipes = recipes;
+    this.npcs = npcs;
+    this.quests = quests;
     this.startingCityId = startingCities[0].id;
 
     this.logger.log(
-      `Loaded content pack: ${this.cities.size} cities, ${this.regions.length} regions, ${this.monsters.size} monsters, ${this.items.size} items, ${this.shops.size} shops, ${this.professions.size} professions, ${this.recipes.size} recipes`,
+      `Loaded content pack: ${this.cities.size} cities, ${this.regions.length} regions, ${this.monsters.size} monsters, ${this.items.size} items, ${this.shops.size} shops, ${this.professions.size} professions, ${this.recipes.size} recipes, ${this.npcs.size} npcs, ${this.quests.size} quests`,
     );
   }
 
@@ -254,5 +342,17 @@ export class ContentService implements OnModuleInit {
 
   findRecipe(id: string): Recipe | undefined {
     return this.recipes.get(id);
+  }
+
+  findNpc(id: string): Npc | undefined {
+    return this.npcs.get(id);
+  }
+
+  getQuests(): Quest[] {
+    return [...this.quests.values()];
+  }
+
+  findQuest(id: string): Quest | undefined {
+    return this.quests.get(id);
   }
 }

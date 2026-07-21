@@ -108,6 +108,7 @@ model Character {
   professionXp    Int       @default(0)
   items           ItemInstance[]
   craftingJobs    CraftingJob[]
+  questProgress   QuestProgress[]
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -276,4 +277,34 @@ model CraftingJob {
 
   @@index([characterId, status])
   @@map("crafting_jobs")
+}
+
+enum QuestStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+// Quest and objective *definitions* are content-pack data (ContentService),
+// same split as recipes/CraftingJob - this table holds only per-character
+// *progress*. objectiveProgress is a parallel array to the content-defined
+// objectives array (index 0 tracks objectives[0], etc.) rather than its own
+// table, since objectives aren't independently addressable rows outside
+// their quest (M9 design discussion; build-plan-v1.md §4.4: apply the
+// cross-module transaction pattern directly, don't build a framework for
+// it). No repeat/cooldown fields: repeatable quests are explicitly not a
+// core platform feature (M9 design discussion) - a quest is completed at
+// most once per character, enforced by the unique constraint below.
+model QuestProgress {
+  id                String      @id @default(uuid())
+  characterId       String
+  character         Character   @relation(fields: [characterId], references: [id])
+  questId           String
+  status            QuestStatus @default(IN_PROGRESS)
+  objectiveProgress Int[]
+  acceptedAt        DateTime    @default(now())
+  completedAt       DateTime?
+
+  @@unique([characterId, questId])
+  @@index([characterId, status])
+  @@map("quest_progress")
 }
