@@ -6,9 +6,22 @@ import { FriendsController } from './friends.controller';
 import { FriendsService } from './friends.service';
 import { MutesController } from './mutes.controller';
 import { MutesService } from './mutes.service';
+import { PrivateMessagesController } from './private-messages.controller';
+import { PrivateMessagesService } from './private-messages.service';
 
 @Module({
-  controllers: [FriendsController, MutesController, ChatController],
-  providers: [FriendsService, MutesService, ChatService, ChatGateway],
+  controllers: [
+    FriendsController,
+    MutesController,
+    ChatController,
+    PrivateMessagesController,
+  ],
+  providers: [
+    FriendsService,
+    MutesService,
+    ChatService,
+    ChatGateway,
+    PrivateMessagesService,
+  ],
 })
 export class SocialModule {}
