@@ -1,0 +1,33 @@
+worldEvents:
+  - id: raiding-warband
+    name: The Ashcarn Warband
+    telegraph: >
+      Scouts report a large armed band moving down the eastern road,
+      making no particular effort to hide themselves.
+    telegraphHours: 72
+    activeHours: 36
+    responseTypes: [FIGHT, SUPPORT]
+    monsterId: bandit
+    supportCost:
+      gold: 25
+    moodFlavor:
+      STRUGGLING:
+        - The gate looks thin on defenders.
+        - Smoke is already curling over the wall.
+      HOLDING:
+        - The line at the gate looks like it might actually hold.
+        - Whoever's been resupplying the defenders, it's working.
+    outcomes:
+      - tag: DEFENDED
+        favoredByPlayerResponse: true
+        residue: >
+          The east gate bears a rebuilt scar from the Ashcarn raid - a
+          patched wall and a story everyone in the city already knows.
+        flavor:
+          - The warband broke against the gate and pulled back toward the coast road.
+      - tag: UNOPPOSED
+        residue: >
+          The Ashcarn raiders dug in along the eastern road; the outer
+          market never fully reopened.
+        flavor:
+          - Nobody turned them back. They didn't take the city - but they didn't leave, either.

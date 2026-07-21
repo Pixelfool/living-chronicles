@@ -16,7 +16,8 @@
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
-    "prisma:migrate:deploy": "prisma migrate deploy"
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "seed:world-event": "ts-node prisma/seed-world-event.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",

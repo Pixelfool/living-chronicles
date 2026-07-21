@@ -10,5 +10,6 @@ import { TradesService } from './trades.service';
   imports: [CharacterModule],
   controllers: [ShopsController, TradesController],
   providers: [AuditLogService, ShopsService, TradesService],
+  exports: [AuditLogService],
 })
 export class EconomyModule {}

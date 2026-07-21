@@ -380,3 +380,43 @@ model DungeonRun {
   @@index([characterId, status])
   @@map("dungeon_runs")
 }
+
+enum WorldEventPhase {
+  EMERGING
+  ACTIVE
+  RESOLVED
+}
+
+// The first persisted state in this codebase that advances on its own
+// (Cron-driven, like RegenTask) rather than only in response to a player
+// action (DungeonRun) or lazily on next touch (CraftingJob) - see
+// world-events-tick.task.ts. That's a deliberate, explicit choice: a
+// world event's phase has to move forward whether or not anyone is
+// playing, or "the world kept existing without them" (vision.md §5)
+// wouldn't actually be true of it.
+//
+// No per-player attribution is ever stored here: fightScore/supportScore
+// are anonymous aggregate tallies of how many times each response was
+// taken, and there is deliberately no join table recording which
+// character contributed what (M12 design discussion: Watch is not a
+// tracked verb - it's the implicit result of taking neither response -
+// and "who participated" must never become a queryable fact).
+model WorldEventInstance {
+  id           String          @id @default(uuid())
+  definitionId String
+  cityId       String
+  phase        WorldEventPhase @default(EMERGING)
+  fightScore   Int             @default(0)
+  supportScore Int             @default(0)
+  activeAt     DateTime
+  resolvesAt   DateTime
+  // Content-owned outcome tag (e.g. "DEFENDED") - plain string, not a
+  // Prisma enum, same reasoning as Character.profession: a new event's
+  // outcome vocabulary must never require a migration.
+  resolvedOutcome String?
+  resolvedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([cityId, phase])
+  @@map("world_event_instances")
+}

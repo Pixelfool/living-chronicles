@@ -241,3 +241,84 @@ export type Dungeon = z.infer<typeof DungeonSchema>;
 export const DungeonsFileSchema = z.object({
   dungeons: z.array(DungeonSchema),
 });
+
+// The engine's closed vocabulary of what a player can fundamentally do
+// during a world event (M12 design discussion). A definition selects
+// which of these apply to its situation; it never invents a new one -
+// adding a value here is an engine capability change, not a per-event
+// exception. Watch is deliberately absent: it's the implicit result of
+// doing neither of these, never a tracked verb (see WorldEventInstance's
+// schema comment in prisma/schema.prisma).
+export const WorldEventResponseTypeSchema = z.enum(['FIGHT', 'SUPPORT']);
+export type WorldEventResponseType = z.infer<
+  typeof WorldEventResponseTypeSchema
+>;
+
+// Outcome tags are content's own vocabulary, not a shared enum - same
+// reasoning as Character.profession being a plain string: a new event's
+// outcome names must never require an engine change. residue is the
+// permanent, additive text the city carries once resolved; flavor is the
+// resolution-moment text pool (mirrors preparednessFlavor). Exactly one
+// outcome per definition must be favoredByPlayerResponse - this replaces
+// any reliance on array order for "which outcome does player effort lean
+// toward" (M12 design discussion).
+export const WorldEventOutcomeSchema = z.object({
+  tag: z.string(),
+  residue: z.string(),
+  flavor: z.array(z.string()).min(1),
+  favoredByPlayerResponse: z.boolean().default(false),
+});
+export type WorldEventOutcome = z.infer<typeof WorldEventOutcomeSchema>;
+
+// Deliberately not tied to a city - cityId lives on WorldEventInstance,
+// not here, so the same definition (e.g. "a raiding warband") can
+// threaten a different city later without duplicating content (M12
+// design discussion).
+//
+// Per-response-type config is one bespoke optional field plus one
+// .refine() per verb (monsterId+refine for FIGHT, supportCost+refine for
+// SUPPORT) - flagged in the M12 code review as a shape that won't scale
+// past 2-3 response types. Left as-is deliberately: two verbs don't
+// prove the shape is actually a problem yet, and generalizing into a
+// keyed responseConfig now would mean designing for a third response
+// type that doesn't exist (build-plan-v1.md §4). Revisit when one does.
+export const WorldEventDefinitionSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    telegraph: z.string(),
+    telegraphHours: z.number().int().positive(),
+    activeHours: z.number().int().positive(),
+    responseTypes: z.array(WorldEventResponseTypeSchema).min(1),
+    monsterId: z.string().optional(),
+    supportCost: z.object({ gold: z.number().int().positive() }).optional(),
+    // One non-empty pool of flavor lines per mood tier - content's job,
+    // never the domain's, to say anything at all (architecture.md §4.13,
+    // same idiom as Dungeon.preparednessFlavor).
+    moodFlavor: z.object({
+      STRUGGLING: z.array(z.string()).min(1),
+      HOLDING: z.array(z.string()).min(1),
+    }),
+    outcomes: z.array(WorldEventOutcomeSchema).min(2),
+  })
+  .refine(
+    (def) =>
+      !def.responseTypes.includes('FIGHT') || def.monsterId !== undefined,
+    { message: 'an event recognizing FIGHT must declare a monsterId' },
+  )
+  .refine(
+    (def) =>
+      !def.responseTypes.includes('SUPPORT') || def.supportCost !== undefined,
+    { message: 'an event recognizing SUPPORT must declare a supportCost' },
+  )
+  .refine(
+    (def) =>
+      def.outcomes.filter((outcome) => outcome.favoredByPlayerResponse)
+        .length === 1,
+    { message: 'exactly one outcome must be favoredByPlayerResponse' },
+  );
+export type WorldEventDefinition = z.infer<typeof WorldEventDefinitionSchema>;
+
+export const WorldEventsFileSchema = z.object({
+  worldEvents: z.array(WorldEventDefinitionSchema),
+});

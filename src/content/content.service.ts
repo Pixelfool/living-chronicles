@@ -23,6 +23,8 @@ import {
   Region,
   Shop,
   ShopsFileSchema,
+  WorldEventDefinition,
+  WorldEventsFileSchema,
 } from './schemas';
 
 const CONTENT_DIR =
@@ -51,6 +53,7 @@ export class ContentService implements OnModuleInit {
   private npcs = new Map<string, Npc>();
   private quests = new Map<string, Quest>();
   private dungeons = new Map<string, Dungeon>();
+  private worldEvents = new Map<string, WorldEventDefinition>();
   private startingCityId!: string;
 
   onModuleInit(): void {
@@ -73,6 +76,9 @@ export class ContentService implements OnModuleInit {
     const questsFile = QuestsFileSchema.parse(this.readYaml('quests.yaml'));
     const dungeonsFile = DungeonsFileSchema.parse(
       this.readYaml('dungeons.yaml'),
+    );
+    const worldEventsFile = WorldEventsFileSchema.parse(
+      this.readYaml('world-events.yaml'),
     );
 
     const cities = new Map<string, City>();
@@ -308,6 +314,21 @@ export class ContentService implements OnModuleInit {
       dungeons.set(dungeon.id, dungeon);
     }
 
+    const worldEvents = new Map<string, WorldEventDefinition>();
+    for (const worldEvent of worldEventsFile.worldEvents) {
+      if (worldEvents.has(worldEvent.id)) {
+        throw new Error(
+          `duplicate world event id in content pack: "${worldEvent.id}"`,
+        );
+      }
+      if (worldEvent.monsterId && !monsters.has(worldEvent.monsterId)) {
+        throw new Error(
+          `world event "${worldEvent.id}" references unknown monster "${worldEvent.monsterId}"`,
+        );
+      }
+      worldEvents.set(worldEvent.id, worldEvent);
+    }
+
     this.cities = cities;
     this.monsters = monsters;
     this.items = items;
@@ -318,10 +339,11 @@ export class ContentService implements OnModuleInit {
     this.npcs = npcs;
     this.quests = quests;
     this.dungeons = dungeons;
+    this.worldEvents = worldEvents;
     this.startingCityId = startingCities[0].id;
 
     this.logger.log(
-      `Loaded content pack: ${this.cities.size} cities, ${this.regions.length} regions, ${this.monsters.size} monsters, ${this.items.size} items, ${this.shops.size} shops, ${this.professions.size} professions, ${this.recipes.size} recipes, ${this.npcs.size} npcs, ${this.quests.size} quests, ${this.dungeons.size} dungeons`,
+      `Loaded content pack: ${this.cities.size} cities, ${this.regions.length} regions, ${this.monsters.size} monsters, ${this.items.size} items, ${this.shops.size} shops, ${this.professions.size} professions, ${this.recipes.size} recipes, ${this.npcs.size} npcs, ${this.quests.size} quests, ${this.dungeons.size} dungeons, ${this.worldEvents.size} world events`,
     );
   }
 
@@ -410,5 +432,9 @@ export class ContentService implements OnModuleInit {
 
   findDungeon(id: string): Dungeon | undefined {
     return this.dungeons.get(id);
+  }
+
+  findWorldEvent(id: string): WorldEventDefinition | undefined {
+    return this.worldEvents.get(id);
   }
 }
