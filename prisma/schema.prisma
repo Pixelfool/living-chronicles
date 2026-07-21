@@ -8,18 +8,23 @@ datasource db {
 }
 
 model User {
-  id                     String          @id @default(uuid())
-  email                  String          @unique
-  username               String          @unique
-  passwordHash           String
-  createdAt              DateTime        @default(now())
-  updatedAt              DateTime        @updatedAt
-  character              Character?
-  friendRequestsSent     FriendRequest[] @relation("FriendRequestsSent")
-  friendRequestsReceived FriendRequest[] @relation("FriendRequestsReceived")
-  mutesMade              Mute[]          @relation("MutesMade")
-  mutesReceived          Mute[]          @relation("MutesReceived")
-  chatMessages           ChatMessage[]
+  id                       String            @id @default(uuid())
+  email                    String            @unique
+  username                 String            @unique
+  passwordHash             String
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+  character                Character?
+  friendRequestsSent       FriendRequest[]   @relation("FriendRequestsSent")
+  friendRequestsReceived   FriendRequest[]   @relation("FriendRequestsReceived")
+  mutesMade                Mute[]            @relation("MutesMade")
+  mutesReceived            Mute[]            @relation("MutesReceived")
+  chatMessages             ChatMessage[]
+  guildMembership          GuildMember?
+  guildInvitesSent         GuildInvite[]     @relation("GuildInvitesSent")
+  guildInvitesReceived     GuildInvite[]     @relation("GuildInvitesReceived")
+  privateMessagesSent      PrivateMessage[]  @relation("PrivateMessagesSent")
+  privateMessagesReceived  PrivateMessage[]  @relation("PrivateMessagesReceived")
 
   @@map("users")
 }
@@ -109,4 +114,72 @@ model ItemInstance {
   @@index([characterId])
   @@index([characterId, equipped])
   @@map("item_instances")
+}
+
+model Guild {
+  id        String        @id @default(uuid())
+  name      String        @unique
+  tag       String        @unique
+  createdAt DateTime      @default(now())
+  members   GuildMember[]
+  invites   GuildInvite[]
+
+  @@map("guilds")
+}
+
+enum GuildRole {
+  LEADER
+  OFFICER
+  MEMBER
+}
+
+model GuildMember {
+  id       String    @id @default(uuid())
+  guildId  String
+  guild    Guild     @relation(fields: [guildId], references: [id])
+  userId   String    @unique
+  user     User      @relation(fields: [userId], references: [id])
+  role     GuildRole @default(MEMBER)
+  joinedAt DateTime  @default(now())
+
+  @@index([guildId])
+  @@map("guild_members")
+}
+
+enum GuildInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model GuildInvite {
+  id            String            @id @default(uuid())
+  guildId       String
+  guild         Guild             @relation(fields: [guildId], references: [id])
+  invitedUserId String
+  invitedUser   User              @relation("GuildInvitesReceived", fields: [invitedUserId], references: [id])
+  invitedById   String
+  invitedBy     User              @relation("GuildInvitesSent", fields: [invitedById], references: [id])
+  status        GuildInviteStatus @default(PENDING)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@unique([guildId, invitedUserId])
+  @@index([invitedUserId, status])
+  @@map("guild_invites")
+}
+
+model PrivateMessage {
+  id          String    @id @default(uuid())
+  senderId    String
+  sender      User      @relation("PrivateMessagesSent", fields: [senderId], references: [id])
+  recipientId String
+  recipient   User      @relation("PrivateMessagesReceived", fields: [recipientId], references: [id])
+  body        String
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([recipientId, createdAt])
+  @@index([senderId, recipientId, createdAt])
+  @@map("private_messages")
 }

@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { CharacterModule } from './character/character.module';
 import { CombatModule } from './combat/combat.module';
 import { ContentModule } from './content/content.module';
+import { GuildsModule } from './guilds/guilds.module';
 import { HealthModule } from './health/health.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -31,6 +32,7 @@ import { WorldModule } from './world/world.module';
     CombatModule,
     WorldModule,
     SocialModule,
+    GuildsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

@@ -7,10 +7,12 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
+import { OnEvent } from '@nestjs/event-emitter';
 import { IncomingMessage } from 'http';
 import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { MutesService } from './mutes.service';
+import { PrivateMessageSentEvent } from './private-messages.service';
 
 type SessionRequest = IncomingMessage & { session?: { userId?: string } };
 type AuthedSocket = Socket & { request: SessionRequest };
@@ -68,6 +70,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   handleDisconnect(client: Socket): void {
     this.connections.delete(client.id);
+  }
+
+  // Best-effort live nudge for an already-connected recipient - the
+  // authoritative copy always lives in Postgres via PrivateMessagesService,
+  // this just saves a poll for whoever's online right now (game-design.md
+  // §7: PMs "should stay simple", so no ack/delivery-receipt protocol).
+  @OnEvent('PrivateMessageSent')
+  handlePrivateMessageSent(payload: PrivateMessageSentEvent): void {
+    for (const [socketId, recipient] of this.connections) {
+      if (recipient.userId === payload.recipientId) {
+        this.server.to(socketId).emit('pm:new', payload);
+      }
+    }
   }
 
   @SubscribeMessage('chat:send')

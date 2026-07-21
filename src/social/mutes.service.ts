@@ -65,4 +65,12 @@ export class MutesService {
     });
     return new Set(mutes.map((m) => m.muterId));
   }
+
+  /** Whether `muterId` has muted `mutedId` - used to block DMs to someone who's muted you. */
+  async isMuted(muterId: string, mutedId: string): Promise<boolean> {
+    const mute = await this.prisma.mute.findUnique({
+      where: { muterId_mutedId: { muterId, mutedId } },
+    });
+    return mute !== null;
+  }
 }
