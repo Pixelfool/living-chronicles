@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { DEFAULT_LOCALE, I18nService } from '../i18n/i18n.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface FriendRequestSentEvent {
@@ -29,17 +30,26 @@ export class FriendsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly i18n: I18nService,
   ) {}
 
-  async sendRequest(userId: string, targetUsername: string) {
+  async sendRequest(
+    userId: string,
+    targetUsername: string,
+    lang: string = DEFAULT_LOCALE,
+  ) {
     const target = await this.prisma.user.findUnique({
       where: { username: targetUsername },
     });
     if (!target) {
-      throw new NotFoundException('no such player');
+      throw new NotFoundException(
+        this.i18n.t('friends.errors.playerNotFound', { lang }),
+      );
     }
     if (target.id === userId) {
-      throw new BadRequestException('cannot send a friend request to yourself');
+      throw new BadRequestException(
+        this.i18n.t('friends.errors.cannotRequestSelf', { lang }),
+      );
     }
 
     const existing = await this.prisma.friendRequest.findFirst({
@@ -53,9 +63,12 @@ export class FriendsService {
     });
     if (existing) {
       throw new ConflictException(
-        existing.status === 'ACCEPTED'
-          ? 'already friends with that player'
-          : 'a friend request already exists between you two',
+        this.i18n.t(
+          existing.status === 'ACCEPTED'
+            ? 'friends.errors.alreadyFriends'
+            : 'friends.errors.requestExists',
+          { lang },
+        ),
       );
     }
 
@@ -84,15 +97,24 @@ export class FriendsService {
     return request;
   }
 
-  async respond(userId: string, requestId: string, accept: boolean) {
+  async respond(
+    userId: string,
+    requestId: string,
+    accept: boolean,
+    lang: string = DEFAULT_LOCALE,
+  ) {
     const req = await this.prisma.friendRequest.findUnique({
       where: { id: requestId },
     });
     if (!req || req.addresseeId !== userId) {
-      throw new NotFoundException('no such friend request');
+      throw new NotFoundException(
+        this.i18n.t('friends.errors.requestNotFound', { lang }),
+      );
     }
     if (req.status !== 'PENDING') {
-      throw new ConflictException('this request has already been resolved');
+      throw new ConflictException(
+        this.i18n.t('friends.errors.requestResolved', { lang }),
+      );
     }
 
     const updated = await this.prisma.friendRequest.update({

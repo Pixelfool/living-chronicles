@@ -48,6 +48,7 @@ This is a decision record, not a tutorial. Every major choice includes *why*, wh
 | GraphQL | **Deferred** | Add only if/when you build a data-hungry admin dashboard or third-party clients need flexible queries |
 | Plugin model | Two-tier: **Content Packs** (data, no code) and **Code Plugins** (npm packages, trusted). **Explicitly: install/update = rebuild + redeploy, not runtime hot-swap** in v1 | Fully sandboxed, hot-loadable untrusted plugins — real future need, not a v1 problem, and not implied to already exist |
 | Deployment | Docker Compose on a single VPS, **migrations run as a gated step before traffic cutover** (§11) | Kubernetes (you don't have the scale or the ops budget for this); naive `up -d` with no migration ordering (v1 gap) |
+| Localization | Custom JSON-catalog `I18nService` (§4.12), loaded like the content pack; locale passed explicitly per request, no ambient/request-scoped context | i18next / nestjs-i18n (real libraries, deferred until plural-rule complexity beyond one/other, or a persisted per-user locale preference, actually requires them) |
 
 Every "rejected for now" is a trigger condition, not a permanent no — spelled out in each section.
 
@@ -202,6 +203,20 @@ Held up under review — restated from v1 with trigger conditions unchanged: int
 ### 4.11 Real-Time: WebSocket Gateway, Scoped to Chat/Presence/Notifications
 
 Unchanged from v1 — still the right scope given turn-based combat. One addition: session store is now Redis-backed from v1 (§7), which happens to also be exactly what the Socket.IO Redis adapter needs for future multi-instance chat — a case where fixing one gap (session store choice) removes a future migration step for a different concern almost for free.
+
+### 4.12 Localization / i18n
+
+**Decision:** a small, custom `I18nService` (`src/i18n/`), not a general-purpose i18n framework — loads namespaced JSON translation files per locale from disk at boot, the same load-once-at-boot, fail-loudly pattern already used for the YAML content pack (§4.9), and exposes one method: `t(key, { lang, args, count })`. No user-facing string is hardcoded in a service, controller, or gateway; business logic emits translation *keys*, and resolution to actual display text happens at the edge, using the request's `Accept-Language` header (falling back to English).
+
+**Why not i18next / nestjs-i18n:** both are mature, capable libraries, and neither was rejected on merit — they were rejected on fit for right now. The actual requirement (key lookup, `{param}` interpolation, and a two-category "one/other" plural rule that already covers both English and German) is small enough that a service under 150 lines covers it completely. More importantly, the way these libraries typically thread "the current request's locale" through a call without passing it explicitly is request-scoped DI or `AsyncLocalStorage` — adopting that would force request-scoped lifecycle onto every service that wants to localize a message, one module at a time, which is exactly the kind of architectural cost this document has repeatedly said not to pay before it's needed (§4.3's tiered layering, §1's "don't build ahead of need"). Revisit if a language with more than two plural categories (Slavic, Arabic) becomes a real requirement — that's the one hard limit of the current design, and it's precisely what a proper library would handle for free.
+
+**How locale is threaded through:** the same pattern the rest of the codebase already uses for other request-derived context (session `userId`, the CSRF token) — a controller, or a gateway's `handleConnection`, reads `Accept-Language` and passes the resolved locale explicitly into the service method that needs it, as an ordinary parameter. No ambient context, no magic. This keeps localization genuinely independent of game logic: a service that doesn't take a `lang` parameter simply isn't localized yet, and localizing one is a small, local, mechanical change to that module alone — never a project-wide migration.
+
+**Parameterized, never concatenated:** every translation is a complete sentence with named placeholders (`"Message must be between 1 and {max} characters."`), never assembled by joining translated fragments around a raw value. This is what makes a language with different word order or agreement rules (German) safe to add later — the translator owns the whole sentence, not a piece of one.
+
+**Plugins:** `I18nService.registerNamespaceDir(path)` merges an additional directory of per-locale namespace files into the catalog. No plugin loader exists yet to call this automatically (§5.2's plugin loader is still deferred, unchanged) — this is the same "plugin-ready, not plugin-complete" hook already used for content packs (§4.9's loader supports exactly one pack today but doesn't foreclose more): the day a code plugin ships its own translations, it registers its directory here instead of the loader needing a rewrite.
+
+**What's deliberately not built yet:** a persisted per-user locale preference (the resolver only reads `Accept-Language` per request — there's no `User.locale` column), a client-side translation catalog for the not-yet-built React SPA, and localization of the exception messages that already exist across the other modules (`build-plan-v1.md` tracks this as incremental, module-touched-anyway work, not a standalone migration pass).
 
 ---
 
