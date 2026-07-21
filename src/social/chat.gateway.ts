@@ -10,7 +10,6 @@ import {
 import { OnEvent } from '@nestjs/event-emitter';
 import { IncomingMessage } from 'http';
 import { Server, Socket } from 'socket.io';
-import { I18nService, resolveLocaleFromHeader } from '../i18n/i18n.service';
 import { ChatService } from './chat.service';
 import { MutesService } from './mutes.service';
 import { PrivateMessageSentEvent } from './private-messages.service';
@@ -21,7 +20,6 @@ type AuthedSocket = Socket & { request: SessionRequest };
 interface ConnectionState {
   userId: string;
   username: string;
-  lang: string;
 }
 
 function headerValue(value: string | string[] | undefined): string | undefined {
@@ -81,7 +79,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly chat: ChatService,
     private readonly mutes: MutesService,
-    private readonly i18n: I18nService,
   ) {}
 
   async handleConnection(client: AuthedSocket): Promise<void> {
@@ -110,9 +107,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.connections.set(client.id, {
       userId,
       username: identity.username,
-      lang: resolveLocaleFromHeader(
-        client.handshake.headers['accept-language'],
-      ),
     });
 
     client.emit('chat:history', await this.chat.recentHistory(userId));
@@ -147,27 +141,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const body = typeof data?.body === 'string' ? data.body.trim() : '';
     if (!body || body.length > MAX_MESSAGE_LENGTH) {
-      client.emit(
-        'chat:error',
-        this.i18n.t('chat.errors.messageLength', {
-          lang: state.lang,
-          args: { max: MAX_MESSAGE_LENGTH },
-        }),
-      );
+      client.emit('chat:error', 'message must be 1-280 characters');
       return;
     }
 
     const now = Date.now();
     const lastMessageAt = this.lastMessageAtByUser.get(state.userId) ?? 0;
     if (now - lastMessageAt < MIN_MESSAGE_INTERVAL_MS) {
-      const remainingMs = MIN_MESSAGE_INTERVAL_MS - (now - lastMessageAt);
-      client.emit(
-        'chat:error',
-        this.i18n.t('chat.errors.rateLimited', {
-          lang: state.lang,
-          args: { seconds: Math.ceil(remainingMs / 1000) },
-        }),
-      );
+      client.emit('chat:error', 'sending too fast, slow down');
       return;
     }
     this.lastMessageAtByUser.set(state.userId, now);

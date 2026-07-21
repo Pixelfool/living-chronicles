@@ -11,7 +11,6 @@ import { ContentModule } from './content/content.module';
 import { EconomyModule } from './economy/economy.module';
 import { GuildsModule } from './guilds/guilds.module';
 import { HealthModule } from './health/health.module';
-import { I18nModule } from './i18n/i18n.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { SocialModule } from './social/social.module';
@@ -27,7 +26,6 @@ import { WorldModule } from './world/world.module';
     }),
     PrismaModule,
     ContentModule,
-    I18nModule,
     HealthModule,
     AuthModule,
     CharacterModule,

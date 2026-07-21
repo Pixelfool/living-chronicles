@@ -1,6 +1,0 @@
-{
-  "errors": {
-    "messageLength": "Die Nachricht muss zwischen 1 und {max} Zeichen lang sein.",
-    "rateLimited": "Du sendest zu schnell. Bitte warte {seconds}s."
-  }
-}
