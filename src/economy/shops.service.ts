@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CharacterService } from '../character/character.service';
 import { ItemAcquiredEvent } from '../inventory/inventory.service';
 import { ContentService } from '../content/content.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -30,7 +31,8 @@ export interface ShopSaleEvent {
 export interface ShopListingEntry {
   itemId: string;
   name: string;
-  slot: string;
+  type: string;
+  slot: string | undefined;
   price: number;
   attackBonus: number;
   defenseBonus: number;
@@ -42,19 +44,10 @@ export class ShopsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly content: ContentService,
+    private readonly character: CharacterService,
     private readonly auditLog: AuditLogService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
-
-  private async getOwnCharacter(userId: string) {
-    const character = await this.prisma.character.findUnique({
-      where: { userId },
-    });
-    if (!character) {
-      throw new NotFoundException('no character on this account yet');
-    }
-    return character;
-  }
 
   listShop(cityId: string): ShopListingEntry[] {
     const shop = this.content.getShop(cityId);
@@ -67,6 +60,7 @@ export class ShopsService {
       .map((item) => ({
         itemId: item.id,
         name: item.name,
+        type: item.type,
         slot: item.slot,
         price: item.price,
         attackBonus: item.attackBonus,
@@ -88,7 +82,7 @@ export class ShopsService {
     // Fast-fail pre-check only - re-validated against a fresh, locked read
     // inside the transaction below (same pattern as world.service.ts's
     // travel(), which is the earlier precedent for this idiom).
-    await this.getOwnCharacter(userId);
+    await this.character.getForUser(userId);
 
     const result = await this.prisma.$transaction(async (tx) => {
       const { count } = await tx.character.updateMany({
@@ -136,7 +130,7 @@ export class ShopsService {
   }
 
   async sell(userId: string, itemInstanceId: string) {
-    const character = await this.getOwnCharacter(userId);
+    const character = await this.character.getForUser(userId);
 
     const instance = await this.prisma.itemInstance.findUnique({
       where: { id: itemInstanceId },

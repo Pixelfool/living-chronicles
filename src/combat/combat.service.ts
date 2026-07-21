@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CharacterService } from '../character/character.service';
 import { ContentService } from '../content/content.service';
 import {
   InventoryService,
@@ -33,6 +34,7 @@ export class CombatService {
     private readonly prisma: PrismaService,
     private readonly content: ContentService,
     private readonly inventory: InventoryService,
+    private readonly character: CharacterService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -49,12 +51,7 @@ export class CombatService {
     // Fast-fail pre-check so an obviously-bad request (no character yet)
     // doesn't pay for opening a transaction. Not the source of
     // correctness - the transaction below is.
-    const precheck = await this.prisma.character.findUnique({
-      where: { userId },
-    });
-    if (!precheck) {
-      throw new NotFoundException('no character on this account yet');
-    }
+    await this.character.getForUser(userId);
 
     const result = await this.prisma.$transaction(async (tx) => {
       // Claiming the action point up front both gates on it atomically

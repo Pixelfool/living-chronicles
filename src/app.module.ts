@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { CharacterModule } from './character/character.module';
 import { CombatModule } from './combat/combat.module';
 import { ContentModule } from './content/content.module';
+import { CraftingModule } from './crafting/crafting.module';
 import { EconomyModule } from './economy/economy.module';
 import { GuildsModule } from './guilds/guilds.module';
 import { HealthModule } from './health/health.module';
@@ -35,6 +36,7 @@ import { WorldModule } from './world/world.module';
     SocialModule,
     GuildsModule,
     EconomyModule,
+    CraftingModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

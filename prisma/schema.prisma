@@ -100,7 +100,14 @@ model Character {
   maxActionPoints Int       @default(10)
   currentCityId   String
   gold            Int       @default(50)
+  // Plain string, not an enum: professions are content-pack data (like
+  // currentCityId/ItemInstance.itemId already are), not a fixed core set -
+  // a new profession must never need a migration to exist.
+  profession      String?
+  professionLevel Int       @default(1)
+  professionXp    Int       @default(0)
   items           ItemInstance[]
+  craftingJobs    CraftingJob[]
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -235,4 +242,38 @@ model AuditLogEntry {
 
   @@index([actorId, createdAt])
   @@map("audit_log")
+}
+
+enum CraftingJobStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+// M8 (build-plan-v1.md, ADR-0001-adjacent design discussion): materials
+// are consumed atomically when the job starts, not when it resolves -
+// the character has committed to the craft, the output just isn't ready
+// yet ("leave something in motion", vision.md §5). Resolution is lazy:
+// nothing polls this table, a job whose completesAt has passed is
+// resolved the next time any crafting endpoint is hit for that character
+// (no background worker, per build-plan-v1.md §2/§4).
+//
+// Deliberately NOT modeled here, to keep future extension a pure logic
+// change rather than a schema one: quantity (>1 is a trivially additive
+// column later), quality/failure outcomes (the IN_PROGRESS -> COMPLETED
+// resolution step is exactly where that logic would go), and queuing
+// (whether a character may have more than one IN_PROGRESS job at a time
+// is an application-level check in CraftingService, not a DB constraint -
+// loosening it later doesn't touch this table).
+model CraftingJob {
+  id          String            @id @default(uuid())
+  characterId String
+  character   Character         @relation(fields: [characterId], references: [id])
+  recipeId    String
+  status      CraftingJobStatus @default(IN_PROGRESS)
+  startedAt   DateTime          @default(now())
+  completesAt DateTime
+  resolvedAt  DateTime?
+
+  @@index([characterId, status])
+  @@map("crafting_jobs")
 }

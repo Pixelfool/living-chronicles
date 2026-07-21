@@ -11,6 +11,8 @@ monsters:
         dropChance: 0.1
       - itemId: leather-vest
         dropChance: 0.1
+      - itemId: scrap-metal
+        dropChance: 0.3
   - id: bandit
     name: Highway Bandit
     hp: 20
@@ -20,6 +22,8 @@ monsters:
     blurb: Wants your coin purse more than your life, but will settle for either.
     lootTable:
       - itemId: bandit-dagger
+        dropChance: 0.3
+      - itemId: scrap-metal
         dropChance: 0.3
   - id: direwolf
     name: Direwolf
@@ -31,3 +35,5 @@ monsters:
     lootTable:
       - itemId: wolf-pelt-cloak
         dropChance: 0.25
+      - itemId: wolf-fang
+        dropChance: 0.4

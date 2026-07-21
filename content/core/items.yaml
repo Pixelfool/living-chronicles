@@ -27,3 +27,25 @@ items:
     defenseBonus: 4
     price: 35
     blurb: Warm, heavy, and a little unsettling.
+  - id: scrap-metal
+    name: Scrap Metal
+    type: MATERIAL
+    price: 2
+    blurb: Bent, rusted, and exactly what a blacksmith is looking for.
+  - id: wolf-fang
+    name: Wolf Fang
+    type: MATERIAL
+    price: 3
+    blurb: Still sharp. An alchemist will know what to do with it.
+  - id: iron-dagger
+    name: Iron Dagger
+    slot: WEAPON
+    attackBonus: 4
+    defenseBonus: 0
+    price: 40
+    blurb: Not sold anywhere. You'd have to know a blacksmith.
+  - id: vitality-tonic
+    name: Vitality Tonic
+    type: CONSUMABLE
+    price: 10
+    blurb: Tastes like a bad decision. Works anyway.

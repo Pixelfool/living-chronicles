@@ -1,0 +1,25 @@
+recipes:
+  - id: iron-dagger
+    professionId: blacksmith
+    name: Iron Dagger
+    minProfessionLevel: 1
+    durationSeconds: 300
+    materials:
+      - itemId: scrap-metal
+        quantity: 3
+    outputItemId: iron-dagger
+    outputQuantity: 1
+    professionXpReward: 20
+    blurb: A dagger hammered out of good, honest scrap.
+  - id: vitality-tonic
+    professionId: alchemist
+    name: Vitality Tonic
+    minProfessionLevel: 1
+    durationSeconds: 180
+    materials:
+      - itemId: wolf-fang
+        quantity: 2
+    outputItemId: vitality-tonic
+    outputQuantity: 1
+    professionXpReward: 15
+    blurb: A tonic brewed from wolf fang and stubbornness.

@@ -1,5 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CharacterService } from '../character/character.service';
 import { ContentService } from '../content/content.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -22,6 +27,7 @@ export interface InventoryEntry {
   itemId: string;
   equipped: boolean;
   name: string;
+  type: string | undefined;
   slot: string | undefined;
   attackBonus: number;
   defenseBonus: number;
@@ -38,18 +44,9 @@ export class InventoryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly content: ContentService,
+    private readonly character: CharacterService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
-
-  private async getOwnCharacter(userId: string) {
-    const character = await this.prisma.character.findUnique({
-      where: { userId },
-    });
-    if (!character) {
-      throw new NotFoundException('no character on this account yet');
-    }
-    return character;
-  }
 
   private toEntry(instance: {
     id: string;
@@ -62,6 +59,7 @@ export class InventoryService {
       itemId: instance.itemId,
       equipped: instance.equipped,
       name: item?.name ?? instance.itemId,
+      type: item?.type,
       slot: item?.slot,
       attackBonus: item?.attackBonus ?? 0,
       defenseBonus: item?.defenseBonus ?? 0,
@@ -70,7 +68,7 @@ export class InventoryService {
   }
 
   async listForCharacter(userId: string): Promise<InventoryEntry[]> {
-    const character = await this.getOwnCharacter(userId);
+    const character = await this.character.getForUser(userId);
     const instances = await this.prisma.itemInstance.findMany({
       where: { characterId: character.id },
       orderBy: { createdAt: 'asc' },
@@ -101,7 +99,7 @@ export class InventoryService {
     userId: string,
     itemInstanceId: string,
   ): Promise<InventoryEntry[]> {
-    const character = await this.getOwnCharacter(userId);
+    const character = await this.character.getForUser(userId);
 
     const instance = await this.prisma.itemInstance.findUnique({
       where: { id: itemInstanceId },
@@ -113,6 +111,9 @@ export class InventoryService {
     const item = this.content.findItem(instance.itemId);
     if (!item) {
       throw new NotFoundException('item no longer exists in the content pack');
+    }
+    if (item.type !== 'EQUIPMENT') {
+      throw new BadRequestException('this item cannot be equipped');
     }
 
     const itemIdsInSlot = this.content
@@ -149,7 +150,7 @@ export class InventoryService {
     userId: string,
     itemInstanceId: string,
   ): Promise<InventoryEntry[]> {
-    const character = await this.getOwnCharacter(userId);
+    const character = await this.character.getForUser(userId);
 
     const instance = await this.prisma.itemInstance.findUnique({
       where: { id: itemInstanceId },

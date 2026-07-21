@@ -1,0 +1,7 @@
+professions:
+  - id: blacksmith
+    name: Blacksmith
+    blurb: Turns scavenged scrap into gear worth carrying.
+  - id: alchemist
+    name: Alchemist
+    blurb: Brews tonics from whatever the wilds leave behind.

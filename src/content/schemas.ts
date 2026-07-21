@@ -3,15 +3,28 @@ import { z } from 'zod';
 export const ItemSlotSchema = z.enum(['WEAPON', 'ARMOR']);
 export type ItemSlot = z.infer<typeof ItemSlotSchema>;
 
-export const ItemSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  slot: ItemSlotSchema,
-  attackBonus: z.number().int().nonnegative().default(0),
-  defenseBonus: z.number().int().nonnegative().default(0),
-  price: z.number().int().nonnegative().default(0),
-  blurb: z.string(),
-});
+// What an item *is* (EQUIPMENT/MATERIAL/CONSUMABLE) is deliberately
+// separate from *where it's worn* (slot, only meaningful for EQUIPMENT) -
+// M8 design discussion: crafting needs non-equippable material inputs,
+// and conflating "type" with "slot" would have made that a breaking
+// change to the existing WEAPON/ARMOR enum instead of an additive one.
+export const ItemTypeSchema = z.enum(['EQUIPMENT', 'MATERIAL', 'CONSUMABLE']);
+export type ItemType = z.infer<typeof ItemTypeSchema>;
+
+export const ItemSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    type: ItemTypeSchema.default('EQUIPMENT'),
+    slot: ItemSlotSchema.optional(),
+    attackBonus: z.number().int().nonnegative().default(0),
+    defenseBonus: z.number().int().nonnegative().default(0),
+    price: z.number().int().nonnegative().default(0),
+    blurb: z.string(),
+  })
+  .refine((item) => item.type !== 'EQUIPMENT' || item.slot !== undefined, {
+    message: 'equipment items must have a slot',
+  });
 export type Item = z.infer<typeof ItemSchema>;
 
 export const LootEntrySchema = z.object({
@@ -72,4 +85,46 @@ export type Shop = z.infer<typeof ShopSchema>;
 
 export const ShopsFileSchema = z.object({
   shops: z.array(ShopSchema),
+});
+
+export const ProfessionSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  blurb: z.string(),
+});
+export type Profession = z.infer<typeof ProfessionSchema>;
+
+export const ProfessionsFileSchema = z.object({
+  professions: z.array(ProfessionSchema),
+});
+
+export const RecipeMaterialSchema = z.object({
+  itemId: z.string(),
+  quantity: z.number().int().positive(),
+});
+export type RecipeMaterial = z.infer<typeof RecipeMaterialSchema>;
+
+export const RecipeSchema = z.object({
+  id: z.string(),
+  professionId: z.string(),
+  name: z.string(),
+  minProfessionLevel: z.number().int().positive().default(1),
+  // Not exercised by any M8 content or gating logic beyond "recipes
+  // marked true are uncraftable for now" - the field exists so a later
+  // milestone (quest reward, drop, NPC-taught) can grant discovery
+  // without changing the recipe schema or CraftingJob model (M8 design
+  // discussion: level-gating and discovery-gating should both be
+  // expressible from day one, even though only the former is wired up).
+  requiresDiscovery: z.boolean().default(false),
+  durationSeconds: z.number().int().positive(),
+  materials: z.array(RecipeMaterialSchema).min(1),
+  outputItemId: z.string(),
+  outputQuantity: z.number().int().positive().default(1),
+  professionXpReward: z.number().int().nonnegative().default(0),
+  blurb: z.string(),
+});
+export type Recipe = z.infer<typeof RecipeSchema>;
+
+export const RecipesFileSchema = z.object({
+  recipes: z.array(RecipeSchema),
 });
