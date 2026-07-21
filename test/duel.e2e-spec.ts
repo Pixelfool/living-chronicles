@@ -363,4 +363,80 @@ describe('Duels (e2e)', () => {
       .set('x-csrf-token', a.csrfToken)
       .expect(201);
   });
+
+  /**
+   * The fixed lock order in DuelService.attack() (sort the two character
+   * ids, always claim/write in that order regardless of attacker/
+   * defender role) exists so two transactions contending for the same
+   * character row can't deadlock. Racing A-vs-B and B-vs-A directly
+   * doesn't actually prove this: the pairwise repeat-attack cooldown
+   * (correctly) can reject the second request once the first commits,
+   * and that rejection happens at the pre-transaction check, before the
+   * locking machinery is ever reached - a 403 there would prove nothing
+   * about lock ordering either way. Using a third character instead (A
+   * attacks B, C attacks A, concurrently) keeps character A's row
+   * genuinely contended by two different transactions while avoiding
+   * that unrelated business rule, so this actually exercises the lock
+   * order: A's action-point claim must happen exactly once, and A's HP
+   * must reflect both encounters, proving neither transaction's write to
+   * A's row was lost to the other.
+   */
+  it('resolves two duels contending for the same character row without deadlocking or losing an update', async () => {
+    await resetCharacter(a.characterId, { sworn: true });
+    await resetCharacter(b.characterId, { sworn: true });
+    await resetCharacter(c.characterId, { sworn: true });
+
+    const [aAttacksB, cAttacksA] = await Promise.all([
+      a.agent
+        .post('/combat/duels/attack')
+        .set('x-csrf-token', a.csrfToken)
+        .send({ defenderCharacterId: b.characterId }),
+      c.agent
+        .post('/combat/duels/attack')
+        .set('x-csrf-token', c.csrfToken)
+        .send({ defenderCharacterId: a.characterId }),
+    ]);
+
+    // Both requests must actually resolve (not hang, not error out from a
+    // deadlock).
+    expect(aAttacksB.status).toBe(201);
+    expect(cAttacksA.status).toBe(201);
+
+    const after = await prisma.character.findMany({
+      where: { id: { in: [a.characterId, b.characterId, c.characterId] } },
+    });
+    const afterA = after.find((ch) => ch.id === a.characterId)!;
+    const afterB = after.find((ch) => ch.id === b.characterId)!;
+    const afterC = after.find((ch) => ch.id === c.characterId)!;
+
+    // A is the attacker in exactly one of the two duels, so exactly one
+    // action point was claimed on A's row - not zero (which would mean
+    // one transaction's claim was silently lost) and not two (which
+    // would mean the guard against double-claiming broke under a race).
+    expect(afterA.actionPoints).toBe(9);
+    // B never attacks, so B's action points are untouched.
+    expect(afterB.actionPoints).toBe(10);
+    expect(afterC.actionPoints).toBe(9);
+    expect(afterA.hp).toBeGreaterThanOrEqual(1);
+    expect(afterB.hp).toBeGreaterThanOrEqual(1);
+    expect(afterC.hp).toBeGreaterThanOrEqual(1);
+
+    // Both duels were actually recorded - neither transaction's write was
+    // dropped by the other.
+    const duelCount = await prisma.duel.count({
+      where: {
+        OR: [
+          {
+            attackerCharacterId: a.characterId,
+            defenderCharacterId: b.characterId,
+          },
+          {
+            attackerCharacterId: c.characterId,
+            defenderCharacterId: a.characterId,
+          },
+        ],
+      },
+    });
+    expect(duelCount).toBe(2);
+  });
 });
