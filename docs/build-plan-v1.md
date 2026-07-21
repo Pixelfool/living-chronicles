@@ -28,6 +28,7 @@ Extensibility is a **product requirement** for this project — LoGD's longevity
   2. **Cross-cutting actions go through named domain events, even with zero external subscribers.** When a player levels up, the code emits `PlayerLevelUp` and the leveling logic doesn't know or care who's listening — even though today the only listener is other core code, not a plugin. This is `architecture.md` §4.6's event catalog, minus the failure-isolation wrapper and durability guarantees in §4.7, which are additions for when a third party's code is actually on the bus, not before.
   3. **Code is organized by feature** (`combat/`, `inventory/`, `guilds/`) with a boundary you respect by habit — not by the domain/application/infrastructure layering in `architecture.md` §4.3, and not by a CI-enforced rule. This is the shape that *becomes* the module map in §3 later, without paying for hexagonal ceremony before any module has earned it.
   4. **Combat, loot, and currency logic is server-authoritative from day one.** This isn't a scale concern — it costs nothing extra to write it this way from the start, and it's genuinely expensive to retrofit once real trust and real players are on the line.
+  5. **User-facing messages never get built by concatenation, from here on** (ADR-0001, `architecture.md` §4.12) — one complete template per message, named placeholders for dynamic values, no translation library or key format chosen yet. This is the one localization habit that actually can't be retrofitted cheaply later; everything else about *how* a message eventually gets displayed in another language is deliberately still undecided, waiting on requirements Combat, Quests, NPCs, and plugin content haven't produced yet.
 
 Everything else in `architecture.md` — the plugin loader, the SDK, the trust model, the event bus's failure isolation, cross-module transaction orchestration *as reusable infrastructure* — is plugin-**complete** work. None of it belongs in v1. Building it now spends solo-developer time on infrastructure for plugin authors who don't exist, at the direct expense of the thing that actually determines whether this project survives its first two years: a game someone other than you wants to play.
 
@@ -76,6 +77,8 @@ A few things don't fit the "defer until triggered" pattern, because they're eith
 | Turborepo / monorepo build tooling | §9 | One app — nothing to orchestrate | Build/CI time is a felt, measured annoyance, not a prediction |
 | Gated CI/CD, migration-ordered deploys, health-checked rollover, blue-green | §11 | You are the only one who notices your own downtime | Real uptime expectations exist — paying users, or a community actually depending on availability |
 | Full Admin & Moderation module | §3 (module table), §7 | Covered minimally by this document's §3 "do now" items | Report/ban volume outgrows a manual DB update |
+| Choosing a translation library/mechanism (i18next, nestjs-i18n, a custom loader) and converting existing hardcoded messages to it | ADR-0001, `architecture.md` §4.12 | Combat, Quests, NPC dialogue, and plugin content — the modules whose message *shape* would actually inform this choice — don't exist yet. Picking now means guessing | A second language is actually being shipped to players (not just infrastructure), or enough later modules exist that the real shape of "what needs translating" is finally visible |
+| Locale resolution mechanism (header, persisted per-user preference, plugin-defined logic), client-side translation catalog | ADR-0001, `architecture.md` §4.12 | Same reason as above — no chosen mechanism yet means nothing to resolve locale *for* | Follows directly from the trigger above — this is designed together with the library choice, not separately |
 
 ---
 
@@ -93,7 +96,7 @@ Each milestone still ends in something playable, per `architecture.md` §14 — 
 | M5 | Social I: global chat (WS), friends list, mute/block | Live chat, with mute capability | Mute/block per §3, not deferred |
 | M6 | Guilds & private messaging | Form a guild, DM someone | — |
 | M7 | Economy: shops, trading, currency, audit log | Buy/sell/trade | Registration/login rate limiting (§3) must already be live — bots target economies, not empty games. Purchase flow is where the cross-module transaction pattern becomes non-optional |
-| M8 | Crafting & professions | Craft from gathered materials | — |
+| M8 | Crafting & professions | Craft from gathered materials | New user-facing strings avoid concatenation per §1 item 5 (ADR-0001) |
 | M9 | Quests | Accept and complete a quest line | — |
 | M10 | PvP | Fight another player, server-resolved | — |
 | M11 | Dungeons & world events | Clear a multi-stage dungeon | — |
