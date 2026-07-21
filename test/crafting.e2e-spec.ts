@@ -4,6 +4,8 @@ import Redis from 'ioredis';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
+import { ContentService } from '../src/content/content.service';
+import { Recipe } from '../src/content/schemas';
 import { PrismaService } from '../src/prisma/prisma.service';
 import {
   createAgent,
@@ -19,6 +21,36 @@ describe('Crafting (e2e)', () => {
   let redisClient: Redis;
   let server: Parameters<typeof request>[0];
 
+  /**
+   * No shipped recipe currently sets minProfessionLevel > 1 or
+   * requiresDiscovery: true (build-plan-v1.md M8's design discussion:
+   * requiresDiscovery is a schema-only placeholder for now), so nothing
+   * in content/core/recipes.yaml exercises those rejection paths. Rather
+   * than adding an unobtainable fixture recipe to the real shipped
+   * content pack, a single spy on ContentService.findRecipe (installed
+   * once below, cleared per test) serves synthetic recipes for whatever
+   * ids a test registers here, falling through to the real content for
+   * every other id.
+   */
+  const recipeStubs = new Map<string, Recipe>();
+
+  function stubRecipe(id: string, overrides: Partial<Recipe>): void {
+    recipeStubs.set(id, {
+      id,
+      professionId: 'blacksmith',
+      name: 'Test Recipe',
+      minProfessionLevel: 1,
+      requiresDiscovery: false,
+      durationSeconds: 60,
+      materials: [{ itemId: 'scrap-metal', quantity: 1 }],
+      outputItemId: 'iron-dagger',
+      outputQuantity: 1,
+      professionXpReward: 0,
+      blurb: 'test fixture',
+      ...overrides,
+    } satisfies Recipe);
+  }
+
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
@@ -29,6 +61,18 @@ describe('Crafting (e2e)', () => {
     await app.init();
     prisma = moduleRef.get(PrismaService);
     server = app.getHttpServer() as Parameters<typeof request>[0];
+
+    const content = moduleRef.get(ContentService);
+    const realFindRecipe = content.findRecipe.bind(content);
+    jest
+      .spyOn(content, 'findRecipe')
+      .mockImplementation(
+        (id: string) => recipeStubs.get(id) ?? realFindRecipe(id),
+      );
+  });
+
+  afterEach(() => {
+    recipeStubs.clear();
   });
 
   afterAll(async () => {
@@ -71,13 +115,10 @@ describe('Crafting (e2e)', () => {
     await request(server).get('/crafting/recipes').expect(401);
   });
 
-  it('requires choosing a profession before listing or starting a craft', async () => {
-    const { agent } = await adventurerAgent();
-    await agent.get('/crafting/recipes').expect(400);
-  });
-
-  it('chooses a profession once, and rejects choosing again', async () => {
+  it('requires a profession before crafting, and allows choosing exactly once', async () => {
     const { agent, csrfToken } = await adventurerAgent();
+
+    await agent.get('/crafting/recipes').expect(400);
 
     await agent
       .post('/crafting/profession')
@@ -113,8 +154,8 @@ describe('Crafting (e2e)', () => {
     ]);
   });
 
-  it('rejects starting a craft without enough materials', async () => {
-    const { agent, csrfToken } = await adventurerAgent();
+  it('rejects starting a craft without enough materials, below the required profession level, or not yet discovered', async () => {
+    const { agent, csrfToken, characterId } = await adventurerAgent();
     await agent
       .post('/crafting/profession')
       .set('x-csrf-token', csrfToken)
@@ -126,6 +167,24 @@ describe('Crafting (e2e)', () => {
       .set('x-csrf-token', csrfToken)
       .send({ recipeId: 'iron-dagger' })
       .expect(400);
+
+    await prisma.itemInstance.create({
+      data: { characterId, itemId: 'scrap-metal' },
+    });
+
+    stubRecipe('test-level-gated', { minProfessionLevel: 5 });
+    await agent
+      .post('/crafting/start')
+      .set('x-csrf-token', csrfToken)
+      .send({ recipeId: 'test-level-gated' })
+      .expect(403);
+
+    stubRecipe('test-undiscovered', { requiresDiscovery: true });
+    await agent
+      .post('/crafting/start')
+      .set('x-csrf-token', csrfToken)
+      .send({ recipeId: 'test-undiscovered' })
+      .expect(403);
   });
 
   it('starts a craft, blocks a second one while in progress, then resolves lazily once due', async () => {

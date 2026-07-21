@@ -7,6 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CharacterService } from '../character/character.service';
 import { ContentService } from '../content/content.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -49,25 +50,16 @@ export class CraftingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly content: ContentService,
+    private readonly character: CharacterService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
-
-  private async getOwnCharacter(userId: string) {
-    const character = await this.prisma.character.findUnique({
-      where: { userId },
-    });
-    if (!character) {
-      throw new NotFoundException('no character on this account yet');
-    }
-    return character;
-  }
 
   listProfessions() {
     return this.content.getProfessions();
   }
 
   async chooseProfession(userId: string, professionId: string) {
-    const character = await this.getOwnCharacter(userId);
+    const character = await this.character.getForUser(userId);
     if (character.profession) {
       throw new ConflictException('you have already chosen a profession');
     }
@@ -76,15 +68,24 @@ export class CraftingService {
       throw new NotFoundException('no such profession');
     }
 
-    return this.prisma.character.update({
-      where: { userId },
+    // Conditional on profession still being null, not a plain update -
+    // two concurrent "choose profession" requests must not be able to
+    // silently overwrite each other; whichever loses this race gets a
+    // clean 409 instead of the other's choice disappearing unreported.
+    const { count } = await this.prisma.character.updateMany({
+      where: { userId, profession: null },
       data: { profession: professionId },
     });
+    if (count === 0) {
+      throw new ConflictException('you have already chosen a profession');
+    }
+
+    return this.character.getForUser(userId);
   }
 
   async listRecipes(userId: string): Promise<RecipeListEntry[]> {
     await this.resolveDueJob(userId);
-    const character = await this.getOwnCharacter(userId);
+    const character = await this.character.getForUser(userId);
     if (!character.profession) {
       throw new BadRequestException('choose a profession first');
     }
@@ -113,7 +114,7 @@ export class CraftingService {
 
   async getStatus(userId: string) {
     await this.resolveDueJob(userId);
-    const character = await this.getOwnCharacter(userId);
+    const character = await this.character.getForUser(userId);
 
     const job = await this.prisma.craftingJob.findFirst({
       where: { characterId: character.id, status: 'IN_PROGRESS' },
@@ -139,7 +140,7 @@ export class CraftingService {
 
     // Fast-fail pre-checks only - re-validated against a fresh read inside
     // the transaction below (same pattern as world.service.ts's travel()).
-    const character = await this.getOwnCharacter(userId);
+    const character = await this.character.getForUser(userId);
     if (!character.profession) {
       throw new BadRequestException('choose a profession first');
     }
@@ -165,10 +166,22 @@ export class CraftingService {
     }
 
     const job = await this.prisma.$transaction(async (tx) => {
+      // Re-check inside the transaction, not just before it - two
+      // concurrent startCraft calls for the same character can both pass
+      // the outer check before either has committed a job. This is the
+      // last check before anything is written, so it's the one that
+      // actually has to be race-safe.
+      const stillNoJob = await tx.craftingJob.findFirst({
+        where: { characterId: character.id, status: 'IN_PROGRESS' },
+      });
+      if (stillNoJob) {
+        throw new ConflictException('a craft is already in progress');
+      }
+
       for (const material of recipe.materials) {
         const owned = await tx.itemInstance.findMany({
           where: { characterId: character.id, itemId: material.itemId },
-          orderBy: { createdAt: 'asc' },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
           take: material.quantity,
         });
         if (owned.length < material.quantity) {
@@ -176,9 +189,22 @@ export class CraftingService {
             `not enough ${material.itemId} to craft this`,
           );
         }
-        await tx.itemInstance.deleteMany({
+
+        // Postgres serializes concurrent DELETEs targeting the same rows,
+        // but only checking the count (not just trusting the SELECT
+        // above) is what turns "a concurrent request already consumed
+        // these materials" into a clean failure here, instead of silently
+        // creating a job without having actually paid for it - the same
+        // idiom shops.service.ts's sell() already uses for exactly this
+        // reason.
+        const { count: deleted } = await tx.itemInstance.deleteMany({
           where: { id: { in: owned.map((instance) => instance.id) } },
         });
+        if (deleted !== owned.length) {
+          throw new ConflictException(
+            'materials changed while this craft was starting - try again',
+          );
+        }
       }
 
       return tx.craftingJob.create({

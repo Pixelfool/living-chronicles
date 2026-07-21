@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CharacterService } from '../character/character.service';
 import { ContentService } from '../content/content.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -43,18 +44,9 @@ export class InventoryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly content: ContentService,
+    private readonly character: CharacterService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
-
-  private async getOwnCharacter(userId: string) {
-    const character = await this.prisma.character.findUnique({
-      where: { userId },
-    });
-    if (!character) {
-      throw new NotFoundException('no character on this account yet');
-    }
-    return character;
-  }
 
   private toEntry(instance: {
     id: string;
@@ -76,7 +68,7 @@ export class InventoryService {
   }
 
   async listForCharacter(userId: string): Promise<InventoryEntry[]> {
-    const character = await this.getOwnCharacter(userId);
+    const character = await this.character.getForUser(userId);
     const instances = await this.prisma.itemInstance.findMany({
       where: { characterId: character.id },
       orderBy: { createdAt: 'asc' },
@@ -107,7 +99,7 @@ export class InventoryService {
     userId: string,
     itemInstanceId: string,
   ): Promise<InventoryEntry[]> {
-    const character = await this.getOwnCharacter(userId);
+    const character = await this.character.getForUser(userId);
 
     const instance = await this.prisma.itemInstance.findUnique({
       where: { id: itemInstanceId },
@@ -158,7 +150,7 @@ export class InventoryService {
     userId: string,
     itemInstanceId: string,
   ): Promise<InventoryEntry[]> {
-    const character = await this.getOwnCharacter(userId);
+    const character = await this.character.getForUser(userId);
 
     const instance = await this.prisma.itemInstance.findUnique({
       where: { id: itemInstanceId },

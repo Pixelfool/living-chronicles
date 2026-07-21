@@ -120,6 +120,16 @@ describe('Inventory (e2e)', () => {
       .expect(201);
     const afterUnequip = unequipRes.body as { id: string; equipped: boolean }[];
     expect(afterUnequip.every((e) => !e.equipped)).toBe(true);
+
+    // A MATERIAL item (introduced in M8) has no slot and must never be
+    // equippable, regardless of the same-slot unequip logic above.
+    const material = await prisma.itemInstance.create({
+      data: { characterId, itemId: 'scrap-metal' },
+    });
+    await agent
+      .post(`/inventory/${material.id}/equip`)
+      .set('x-csrf-token', csrfToken)
+      .expect(400);
   });
 
   it('rejects equipping an item that belongs to someone else', async () => {

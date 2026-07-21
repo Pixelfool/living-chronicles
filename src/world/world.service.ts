@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CharacterService } from '../character/character.service';
 import { describeBattle, resolveFight } from '../combat/combat-resolver';
 import {
   BattleFinishedEvent,
@@ -39,6 +40,7 @@ export class WorldService {
     private readonly prisma: PrismaService,
     private readonly content: ContentService,
     private readonly inventory: InventoryService,
+    private readonly character: CharacterService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -59,12 +61,7 @@ export class WorldService {
     // Fast-fail pre-check only - every fact it establishes (current city,
     // route, AP) is re-validated against a fresh, locked read inside the
     // transaction below before anything is written.
-    const precheck = await this.prisma.character.findUnique({
-      where: { userId },
-    });
-    if (!precheck) {
-      throw new NotFoundException('no character on this account yet');
-    }
+    const precheck = await this.character.getForUser(userId);
     if (precheck.currentCityId === toCityId) {
       throw new BadRequestException('already there');
     }

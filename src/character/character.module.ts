@@ -6,5 +6,6 @@ import { RegenTask } from './regen.task';
 @Module({
   controllers: [CharacterController],
   providers: [CharacterService, RegenTask],
+  exports: [CharacterService],
 })
 export class CharacterModule {}

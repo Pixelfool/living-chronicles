@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CharacterService } from '../character/character.service';
 import { ContentService } from '../content/content.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from './audit-log.service';
@@ -45,19 +46,10 @@ export class TradesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly content: ContentService,
+    private readonly character: CharacterService,
     private readonly auditLog: AuditLogService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
-
-  private async characterForUser(userId: string) {
-    const character = await this.prisma.character.findUnique({
-      where: { userId },
-    });
-    if (!character) {
-      throw new NotFoundException('no character on this account yet');
-    }
-    return character;
-  }
 
   private async describeOffers(
     offers: {
@@ -127,8 +119,8 @@ export class TradesService {
       throw new BadRequestException('cannot trade with yourself');
     }
 
-    const fromCharacter = await this.characterForUser(fromUserId);
-    await this.characterForUser(target.id);
+    const fromCharacter = await this.character.getForUser(fromUserId);
+    await this.character.getForUser(target.id);
 
     if (offeredGold > fromCharacter.gold) {
       throw new BadRequestException('you do not have that much gold to offer');
@@ -219,8 +211,8 @@ export class TradesService {
       throw new ConflictException('this offer has already been resolved');
     }
 
-    const fromCharacter = await this.characterForUser(offer.fromUserId);
-    const toCharacter = await this.characterForUser(offer.toUserId);
+    const fromCharacter = await this.character.getForUser(offer.fromUserId);
+    const toCharacter = await this.character.getForUser(offer.toUserId);
 
     await this.prisma.$transaction(async (tx) => {
       const { count: claimed } = await tx.tradeOffer.updateMany({
