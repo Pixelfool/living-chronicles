@@ -1,0 +1,7 @@
+shops:
+  - cityId: haven
+    itemIds: [rusty-sword, leather-vest]
+  - cityId: ashford
+    itemIds: [rusty-sword, bandit-dagger, leather-vest, wolf-pelt-cloak]
+  - cityId: millbrook
+    itemIds: [leather-vest]

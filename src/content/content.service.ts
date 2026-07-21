@@ -11,6 +11,8 @@ import {
   Monster,
   RegionsFileSchema,
   Region,
+  Shop,
+  ShopsFileSchema,
 } from './schemas';
 
 const CONTENT_DIR =
@@ -33,6 +35,7 @@ export class ContentService implements OnModuleInit {
   private monsters = new Map<string, Monster>();
   private items = new Map<string, Item>();
   private regions: Region[] = [];
+  private shops = new Map<string, Shop>();
   private startingCityId!: string;
 
   onModuleInit(): void {
@@ -46,6 +49,7 @@ export class ContentService implements OnModuleInit {
     );
     const regionsFile = RegionsFileSchema.parse(this.readYaml('regions.yaml'));
     const itemsFile = ItemsFileSchema.parse(this.readYaml('items.yaml'));
+    const shopsFile = ShopsFileSchema.parse(this.readYaml('shops.yaml'));
 
     const cities = new Map<string, City>();
     for (const city of citiesFile.cities) {
@@ -106,14 +110,35 @@ export class ContentService implements OnModuleInit {
       );
     }
 
+    const shops = new Map<string, Shop>();
+    for (const shop of shopsFile.shops) {
+      if (shops.has(shop.cityId)) {
+        throw new Error(
+          `duplicate shop for city id in content pack: "${shop.cityId}"`,
+        );
+      }
+      if (!cities.has(shop.cityId)) {
+        throw new Error(`shop references unknown city "${shop.cityId}"`);
+      }
+      for (const itemId of shop.itemIds) {
+        if (!items.has(itemId)) {
+          throw new Error(
+            `shop in "${shop.cityId}" references unknown item "${itemId}"`,
+          );
+        }
+      }
+      shops.set(shop.cityId, shop);
+    }
+
     this.cities = cities;
     this.monsters = monsters;
     this.items = items;
     this.regions = regionsFile.regions;
+    this.shops = shops;
     this.startingCityId = startingCities[0].id;
 
     this.logger.log(
-      `Loaded content pack: ${this.cities.size} cities, ${this.regions.length} regions, ${this.monsters.size} monsters, ${this.items.size} items`,
+      `Loaded content pack: ${this.cities.size} cities, ${this.regions.length} regions, ${this.monsters.size} monsters, ${this.items.size} items, ${this.shops.size} shops`,
     );
   }
 
@@ -160,5 +185,9 @@ export class ContentService implements OnModuleInit {
 
   findItem(id: string): Item | undefined {
     return this.items.get(id);
+  }
+
+  getShop(cityId: string): Shop | undefined {
+    return this.shops.get(cityId);
   }
 }

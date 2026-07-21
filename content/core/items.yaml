@@ -4,22 +4,26 @@ items:
     slot: WEAPON
     attackBonus: 2
     defenseBonus: 0
+    price: 15
     blurb: Better than fists. Barely.
   - id: leather-vest
     name: Leather Vest
     slot: ARMOR
     attackBonus: 0
     defenseBonus: 2
+    price: 20
     blurb: Smells like the last three people who wore it.
   - id: bandit-dagger
     name: Bandit's Dagger
     slot: WEAPON
     attackBonus: 3
     defenseBonus: 0
+    price: 25
     blurb: Still has a bandit's fingerprints on the hilt.
   - id: wolf-pelt-cloak
     name: Wolf-Pelt Cloak
     slot: ARMOR
     attackBonus: 0
     defenseBonus: 4
+    price: 35
     blurb: Warm, heavy, and a little unsettling.

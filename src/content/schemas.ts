@@ -9,6 +9,7 @@ export const ItemSchema = z.object({
   slot: ItemSlotSchema,
   attackBonus: z.number().int().nonnegative().default(0),
   defenseBonus: z.number().int().nonnegative().default(0),
+  price: z.number().int().nonnegative().default(0),
   blurb: z.string(),
 });
 export type Item = z.infer<typeof ItemSchema>;
@@ -61,4 +62,14 @@ export const RegionsFileSchema = z.object({
 });
 export const ItemsFileSchema = z.object({
   items: z.array(ItemSchema),
+});
+
+export const ShopSchema = z.object({
+  cityId: z.string(),
+  itemIds: z.array(z.string()),
+});
+export type Shop = z.infer<typeof ShopSchema>;
+
+export const ShopsFileSchema = z.object({
+  shops: z.array(ShopSchema),
 });
