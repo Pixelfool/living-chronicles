@@ -96,8 +96,8 @@ Each milestone still ends in something playable, per `architecture.md` §14 — 
 | M5 | Social I: global chat (WS), friends list, mute/block | Live chat, with mute capability | Mute/block per §3, not deferred |
 | M6 | Guilds & private messaging | Form a guild, DM someone | — |
 | M7 | Economy: shops, trading, currency, audit log | Buy/sell/trade | Registration/login rate limiting (§3) must already be live — bots target economies, not empty games. Purchase flow is where the cross-module transaction pattern becomes non-optional |
-| M7.5 | Localization ground rules (no i18n library or runtime chosen) | No player-visible change — documentation and convention only, no new code | See `architecture.md` §4.12. Deliberately rules-only: the concrete mechanism is left open until Combat/Quests/NPC/plugin content requirements make the real shape of the problem visible (§4) |
-| M8 | Crafting & professions | Craft from gathered materials | Player-facing strings introduced from here on go through translation keys per §1 item 5 |
+| M7.5 | Localization architectural principles (no i18n library or runtime chosen) | No player-visible change — documentation and convention only, no new code | See `architecture.md` §4.12. Deliberately principles-only: the concrete mechanism is left open until Combat/Quests/NPC/plugin content requirements make the real shape of the problem visible (§4) |
+| M8 | Crafting & professions | Craft from gathered materials | New user-facing strings avoid concatenation per §1 item 5, same as every module since M7.5 |
 | M9 | Quests | Accept and complete a quest line | — |
 | M10 | PvP | Fight another player, server-resolved | — |
 | M11 | Dungeons & world events | Clear a multi-stage dungeon | — |
