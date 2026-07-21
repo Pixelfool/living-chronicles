@@ -20,12 +20,46 @@ type AuthedSocket = Socket & { request: SessionRequest };
 interface ConnectionState {
   userId: string;
   username: string;
-  lastMessageAt: number;
+}
+
+function headerValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function isSameOrigin(
+  originHeader: string | string[] | undefined,
+  hostHeader: string | string[] | undefined,
+): boolean {
+  // Browsers always send Origin on a WS handshake, so requiring a match
+  // when it's present blocks cross-site WebSocket hijacking (browsers
+  // don't apply same-origin policy to raw WebSocket connections the way
+  // they do to fetch/XHR - SameSite=Lax on the session cookie already
+  // covers this in practice, this is a second layer, same spirit as
+  // CSRF's belt-and-suspenders double-submit cookie on the REST side).
+  // Non-browser clients (health checks, tests, a future native client)
+  // often don't set Origin at all, so a missing header is allowed rather
+  // than rejected - that doesn't weaken the actual browser-hijack defense.
+  const origin = headerValue(originHeader);
+  const host = headerValue(hostHeader);
+  if (!origin) {
+    return true;
+  }
+  if (!host) {
+    return false;
+  }
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
 }
 
 // A few lines of in-gateway rate limiting (architecture.md §7: "chat rate
 // limiting") - cheap now, not a framework, just enough to stop a single
-// client from flooding the room.
+// client from flooding the room. Keyed by userId rather than per-socket
+// state so it isn't reset by simply disconnecting and reconnecting - a WS
+// upgrade never passes through the global HTTP ThrottlerGuard, so a
+// per-connection counter would otherwise be trivially bypassable.
 const MIN_MESSAGE_INTERVAL_MS = 800;
 const MAX_MESSAGE_LENGTH = 280;
 
@@ -37,6 +71,7 @@ const MAX_MESSAGE_LENGTH = 280;
 @WebSocketGateway({ namespace: '/chat' })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly connections = new Map<string, ConnectionState>();
+  private readonly lastMessageAtByUser = new Map<string, number>();
 
   @WebSocketServer()
   private readonly server!: Server;
@@ -47,6 +82,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {}
 
   async handleConnection(client: AuthedSocket): Promise<void> {
+    if (
+      !isSameOrigin(
+        client.handshake.headers.origin,
+        client.handshake.headers.host,
+      )
+    ) {
+      client.disconnect(true);
+      return;
+    }
+
     const userId = client.request.session?.userId;
     if (!userId) {
       client.disconnect(true);
@@ -62,7 +107,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.connections.set(client.id, {
       userId,
       username: identity.username,
-      lastMessageAt: 0,
     });
 
     client.emit('chat:history', await this.chat.recentHistory(userId));
@@ -102,11 +146,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     const now = Date.now();
-    if (now - state.lastMessageAt < MIN_MESSAGE_INTERVAL_MS) {
+    const lastMessageAt = this.lastMessageAtByUser.get(state.userId) ?? 0;
+    if (now - lastMessageAt < MIN_MESSAGE_INTERVAL_MS) {
       client.emit('chat:error', 'sending too fast, slow down');
       return;
     }
-    state.lastMessageAt = now;
+    this.lastMessageAtByUser.set(state.userId, now);
 
     const message = await this.chat.postMessage(
       state.userId,

@@ -16,6 +16,12 @@ export interface GuildCreatedEvent {
   founderId: string;
 }
 
+export interface GuildInviteSentEvent {
+  guildId: string;
+  invitedUserId: string;
+  invitedById: string;
+}
+
 export interface GuildMemberJoinedEvent {
   guildId: string;
   userId: string;
@@ -29,6 +35,12 @@ export interface GuildMemberLeftEvent {
 
 export interface GuildDisbandedEvent {
   guildId: string;
+}
+
+export interface GuildLeadershipTransferredEvent {
+  guildId: string;
+  previousLeaderId: string;
+  newLeaderId: string;
 }
 
 @Injectable()
@@ -59,9 +71,20 @@ export class GuildsService {
     try {
       const guild = await this.prisma.$transaction(async (tx) => {
         const created = await tx.guild.create({ data: { name, tag } });
-        await tx.guildMember.create({
-          data: { guildId: created.id, userId, role: GuildRole.LEADER },
+
+        // createMany + skipDuplicates (same idiom as respondInvite below)
+        // turns a concurrent double-submit race on the userId-unique
+        // GuildMember row into an explicit, correctly-labeled conflict
+        // here, rather than letting it fall through to the catch below
+        // and get misreported as a guild name/tag collision.
+        const { count } = await tx.guildMember.createMany({
+          data: [{ guildId: created.id, userId, role: GuildRole.LEADER }],
+          skipDuplicates: true,
         });
+        if (count === 0) {
+          throw new ConflictException('you are already in a guild');
+        }
+
         return created;
       });
 
@@ -181,7 +204,7 @@ export class GuildsService {
       guildId: acting.guildId,
       invitedUserId: target.id,
       invitedById: actingUserId,
-    });
+    } satisfies GuildInviteSentEvent);
 
     return invite;
   }
@@ -354,7 +377,7 @@ export class GuildsService {
       guildId: leader.guildId,
       previousLeaderId: leaderUserId,
       newLeaderId: target.id,
-    });
+    } satisfies GuildLeadershipTransferredEvent);
 
     return { success: true };
   }

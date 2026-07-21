@@ -144,8 +144,11 @@ export class FriendsService {
     return { friends, incoming, outgoing };
   }
 
+  // Idempotent, like MutesService.unmute() - removing a friendship that's
+  // already gone is a success from the caller's point of view, not an
+  // error, same as a standard REST DELETE.
   async remove(userId: string, friendUserId: string) {
-    const result = await this.prisma.friendRequest.deleteMany({
+    await this.prisma.friendRequest.deleteMany({
       where: {
         status: 'ACCEPTED',
         OR: [
@@ -154,9 +157,6 @@ export class FriendsService {
         ],
       },
     });
-    if (result.count === 0) {
-      throw new NotFoundException('not friends with that player');
-    }
     return { success: true };
   }
 }

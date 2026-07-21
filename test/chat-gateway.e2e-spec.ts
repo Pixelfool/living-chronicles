@@ -119,10 +119,13 @@ describe('Chat gateway (e2e)', () => {
     return { userId: body.id, username, sidCookie };
   }
 
-  function connectSocket(sidCookie: string): Promise<Socket> {
+  function connectSocket(sidCookie: string, origin?: string): Promise<Socket> {
     return new Promise((resolve, reject) => {
       const socket = io(`${baseUrl}/chat`, {
-        extraHeaders: { Cookie: `lc.sid=${sidCookie}` },
+        extraHeaders: {
+          Cookie: `lc.sid=${sidCookie}`,
+          ...(origin ? { Origin: origin } : {}),
+        },
         transports: ['websocket'],
         forceNew: true,
       });
@@ -134,6 +137,40 @@ describe('Chat gateway (e2e)', () => {
   it('rejects a connection with no session cookie', async () => {
     await new Promise<void>((resolve, reject) => {
       const socket = io(`${baseUrl}/chat`, {
+        transports: ['websocket'],
+        forceNew: true,
+      });
+      const timer = setTimeout(() => {
+        socket.disconnect();
+        reject(new Error('expected disconnect, got neither event in time'));
+      }, 3000);
+      socket.on('disconnect', () => {
+        clearTimeout(timer);
+        socket.disconnect();
+        resolve();
+      });
+      socket.on('connect_error', () => {
+        clearTimeout(timer);
+        socket.disconnect();
+        resolve();
+      });
+    });
+  });
+
+  it('accepts a matching Origin and rejects a mismatched one, for the same session', async () => {
+    // One registration covers both halves of the check (register throttle
+    // budget - see the comment on the Guilds e2e spec for why this matters).
+    const a = await registerAndGetSessionCookie('e2e-chatws-origin');
+
+    const okSocket = await connectSocket(a.sidCookie, baseUrl);
+    okSocket.disconnect();
+
+    await new Promise<void>((resolve, reject) => {
+      const socket = io(`${baseUrl}/chat`, {
+        extraHeaders: {
+          Cookie: `lc.sid=${a.sidCookie}`,
+          Origin: 'http://evil.example',
+        },
         transports: ['websocket'],
         forceNew: true,
       });
