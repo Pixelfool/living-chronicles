@@ -95,10 +95,12 @@ describe('ContentService (real content pack)', () => {
   });
 
   it('loads the profession roster', () => {
-    expect(content.getProfessions().map((p) => p.id).sort()).toEqual([
-      'alchemist',
-      'blacksmith',
-    ]);
+    expect(
+      content
+        .getProfessions()
+        .map((p) => p.id)
+        .sort(),
+    ).toEqual(['alchemist', 'blacksmith']);
   });
 
   it('resolves every profession and every material/output item referenced by every recipe', () => {
