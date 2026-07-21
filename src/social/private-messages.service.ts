@@ -5,11 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MutesService } from './mutes.service';
 
 const THREAD_LIMIT = 50;
-const INBOX_SCAN_LIMIT = 200;
 
 export interface PrivateMessageSentEvent {
   messageId: string;
@@ -76,42 +76,68 @@ export class PrivateMessagesService {
     return message;
   }
 
+  /**
+   * One row per conversation the user is in, not per message - a naive
+   * "scan the N most recent messages and group them" approach silently
+   * drops whole conversations once enough *other* conversations are more
+   * active than the scan window, which is exactly the kind of bug that's
+   * invisible in a two-person test and real the moment someone has more
+   * than a couple of active friends. DISTINCT ON is the standard Postgres
+   * idiom for "latest row per group" and keeps this to two indexed
+   * queries, bounded by conversation count, not message count.
+   */
   async inbox(userId: string): Promise<ConversationSummary[]> {
-    const messages = await this.prisma.privateMessage.findMany({
-      where: { OR: [{ senderId: userId }, { recipientId: userId }] },
-      include: {
-        sender: { select: { username: true } },
-        recipient: { select: { username: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: INBOX_SCAN_LIMIT,
-    });
+    const lastMessages = await this.prisma.$queryRaw<
+      { correspondentId: string; body: string; createdAt: Date }[]
+    >(Prisma.sql`
+      SELECT DISTINCT ON (correspondent_id)
+        correspondent_id AS "correspondentId",
+        body,
+        "createdAt"
+      FROM (
+        SELECT
+          CASE WHEN "senderId" = ${userId} THEN "recipientId" ELSE "senderId" END
+            AS correspondent_id,
+          body,
+          "createdAt"
+        FROM private_messages
+        WHERE "senderId" = ${userId} OR "recipientId" = ${userId}
+      ) conversations
+      ORDER BY correspondent_id, "createdAt" DESC
+    `);
 
-    const conversations = new Map<string, ConversationSummary>();
-
-    for (const m of messages) {
-      const isFromMe = m.senderId === userId;
-      const otherId = isFromMe ? m.recipientId : m.senderId;
-      const otherUsername = isFromMe ? m.recipient.username : m.sender.username;
-      const unread = !isFromMe && m.readAt === null;
-
-      const existing = conversations.get(otherId);
-      if (!existing) {
-        conversations.set(otherId, {
-          userId: otherId,
-          username: otherUsername,
-          lastMessage: m.body,
-          lastMessageAt: m.createdAt,
-          unreadCount: unread ? 1 : 0,
-        });
-      } else if (unread) {
-        existing.unreadCount += 1;
-      }
+    if (lastMessages.length === 0) {
+      return [];
     }
 
-    return [...conversations.values()].sort(
-      (a, b) => b.lastMessageAt.getTime() - a.lastMessageAt.getTime(),
+    const unreadCounts = await this.prisma.$queryRaw<
+      { correspondentId: string; unreadCount: bigint }[]
+    >(Prisma.sql`
+      SELECT "senderId" AS "correspondentId", COUNT(*) AS "unreadCount"
+      FROM private_messages
+      WHERE "recipientId" = ${userId} AND "readAt" IS NULL
+      GROUP BY "senderId"
+    `);
+    const unreadByCorrespondent = new Map(
+      unreadCounts.map((u) => [u.correspondentId, Number(u.unreadCount)]),
     );
+
+    const correspondentIds = lastMessages.map((m) => m.correspondentId);
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: correspondentIds } },
+      select: { id: true, username: true },
+    });
+    const usernameById = new Map(users.map((u) => [u.id, u.username]));
+
+    return lastMessages
+      .map((m) => ({
+        userId: m.correspondentId,
+        username: usernameById.get(m.correspondentId) ?? 'unknown player',
+        lastMessage: m.body,
+        lastMessageAt: m.createdAt,
+        unreadCount: unreadByCorrespondent.get(m.correspondentId) ?? 0,
+      }))
+      .sort((a, b) => b.lastMessageAt.getTime() - a.lastMessageAt.getTime());
   }
 
   async thread(

@@ -197,6 +197,18 @@ describe('Guilds (e2e)', () => {
       .send({ username: bob.user.username })
       .expect(409);
 
+    // Alice (leader of a different guild than bob's) can't kick or
+    // promote/demote him - he's not a member of her guild.
+    await alice.agent
+      .post(`/guilds/members/${bob.user.userId}/kick`)
+      .set('x-csrf-token', alice.csrfToken)
+      .expect(404);
+    await alice.agent
+      .post(`/guilds/members/${bob.user.userId}/role`)
+      .set('x-csrf-token', alice.csrfToken)
+      .send({ role: 'OFFICER' })
+      .expect(404);
+
     // Solo leader can disband.
     await bob.agent
       .post('/guilds/disband')
