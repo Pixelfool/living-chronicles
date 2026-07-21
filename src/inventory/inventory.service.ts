@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ContentService } from '../content/content.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -22,6 +26,7 @@ export interface InventoryEntry {
   itemId: string;
   equipped: boolean;
   name: string;
+  type: string | undefined;
   slot: string | undefined;
   attackBonus: number;
   defenseBonus: number;
@@ -62,6 +67,7 @@ export class InventoryService {
       itemId: instance.itemId,
       equipped: instance.equipped,
       name: item?.name ?? instance.itemId,
+      type: item?.type,
       slot: item?.slot,
       attackBonus: item?.attackBonus ?? 0,
       defenseBonus: item?.defenseBonus ?? 0,
@@ -113,6 +119,9 @@ export class InventoryService {
     const item = this.content.findItem(instance.itemId);
     if (!item) {
       throw new NotFoundException('item no longer exists in the content pack');
+    }
+    if (item.type !== 'EQUIPMENT') {
+      throw new BadRequestException('this item cannot be equipped');
     }
 
     const itemIdsInSlot = this.content

@@ -50,17 +50,28 @@ describe('ContentService (real content pack)', () => {
     }
   });
 
-  it('loads the item roster with WEAPON and ARMOR slots', () => {
+  it('loads the item roster', () => {
     const items = content.getItems();
     expect(items.map((i) => i.id).sort()).toEqual([
       'bandit-dagger',
+      'iron-dagger',
       'leather-vest',
       'rusty-sword',
+      'scrap-metal',
+      'vitality-tonic',
+      'wolf-fang',
       'wolf-pelt-cloak',
     ]);
-    expect(items.every((i) => i.slot === 'WEAPON' || i.slot === 'ARMOR')).toBe(
-      true,
-    );
+  });
+
+  it('gives every EQUIPMENT item a slot, and no other item a slot', () => {
+    for (const item of content.getItems()) {
+      if (item.type === 'EQUIPMENT') {
+        expect(item.slot === 'WEAPON' || item.slot === 'ARMOR').toBe(true);
+      } else {
+        expect(item.slot).toBeUndefined();
+      }
+    }
   });
 
   it('resolves every item referenced by every monster loot table', () => {
@@ -79,6 +90,26 @@ describe('ContentService (real content pack)', () => {
       }
       for (const itemId of shop.itemIds) {
         expect(content.findItem(itemId)).toBeDefined();
+      }
+    }
+  });
+
+  it('loads the profession roster', () => {
+    expect(content.getProfessions().map((p) => p.id).sort()).toEqual([
+      'alchemist',
+      'blacksmith',
+    ]);
+  });
+
+  it('resolves every profession and every material/output item referenced by every recipe', () => {
+    for (const profession of content.getProfessions()) {
+      const recipes = content.getRecipesForProfession(profession.id);
+      for (const recipe of recipes) {
+        expect(content.findProfession(recipe.professionId)).toBeDefined();
+        expect(content.findItem(recipe.outputItemId)).toBeDefined();
+        for (const material of recipe.materials) {
+          expect(content.findItem(material.itemId)).toBeDefined();
+        }
       }
     }
   });

@@ -9,6 +9,10 @@ import {
   ItemsFileSchema,
   MonstersFileSchema,
   Monster,
+  Profession,
+  ProfessionsFileSchema,
+  Recipe,
+  RecipesFileSchema,
   RegionsFileSchema,
   Region,
   Shop,
@@ -36,6 +40,8 @@ export class ContentService implements OnModuleInit {
   private items = new Map<string, Item>();
   private regions: Region[] = [];
   private shops = new Map<string, Shop>();
+  private professions = new Map<string, Profession>();
+  private recipes = new Map<string, Recipe>();
   private startingCityId!: string;
 
   onModuleInit(): void {
@@ -50,6 +56,10 @@ export class ContentService implements OnModuleInit {
     const regionsFile = RegionsFileSchema.parse(this.readYaml('regions.yaml'));
     const itemsFile = ItemsFileSchema.parse(this.readYaml('items.yaml'));
     const shopsFile = ShopsFileSchema.parse(this.readYaml('shops.yaml'));
+    const professionsFile = ProfessionsFileSchema.parse(
+      this.readYaml('professions.yaml'),
+    );
+    const recipesFile = RecipesFileSchema.parse(this.readYaml('recipes.yaml'));
 
     const cities = new Map<string, City>();
     for (const city of citiesFile.cities) {
@@ -130,15 +140,52 @@ export class ContentService implements OnModuleInit {
       shops.set(shop.cityId, shop);
     }
 
+    const professions = new Map<string, Profession>();
+    for (const profession of professionsFile.professions) {
+      if (professions.has(profession.id)) {
+        throw new Error(
+          `duplicate profession id in content pack: "${profession.id}"`,
+        );
+      }
+      professions.set(profession.id, profession);
+    }
+
+    const recipes = new Map<string, Recipe>();
+    for (const recipe of recipesFile.recipes) {
+      if (recipes.has(recipe.id)) {
+        throw new Error(`duplicate recipe id in content pack: "${recipe.id}"`);
+      }
+      if (!professions.has(recipe.professionId)) {
+        throw new Error(
+          `recipe "${recipe.id}" references unknown profession "${recipe.professionId}"`,
+        );
+      }
+      if (!items.has(recipe.outputItemId)) {
+        throw new Error(
+          `recipe "${recipe.id}" references unknown output item "${recipe.outputItemId}"`,
+        );
+      }
+      for (const material of recipe.materials) {
+        if (!items.has(material.itemId)) {
+          throw new Error(
+            `recipe "${recipe.id}" references unknown material item "${material.itemId}"`,
+          );
+        }
+      }
+      recipes.set(recipe.id, recipe);
+    }
+
     this.cities = cities;
     this.monsters = monsters;
     this.items = items;
     this.regions = regionsFile.regions;
     this.shops = shops;
+    this.professions = professions;
+    this.recipes = recipes;
     this.startingCityId = startingCities[0].id;
 
     this.logger.log(
-      `Loaded content pack: ${this.cities.size} cities, ${this.regions.length} regions, ${this.monsters.size} monsters, ${this.items.size} items, ${this.shops.size} shops`,
+      `Loaded content pack: ${this.cities.size} cities, ${this.regions.length} regions, ${this.monsters.size} monsters, ${this.items.size} items, ${this.shops.size} shops, ${this.professions.size} professions, ${this.recipes.size} recipes`,
     );
   }
 
@@ -189,5 +236,23 @@ export class ContentService implements OnModuleInit {
 
   getShop(cityId: string): Shop | undefined {
     return this.shops.get(cityId);
+  }
+
+  getProfessions(): Profession[] {
+    return [...this.professions.values()];
+  }
+
+  findProfession(id: string): Profession | undefined {
+    return this.professions.get(id);
+  }
+
+  getRecipesForProfession(professionId: string): Recipe[] {
+    return [...this.recipes.values()].filter(
+      (recipe) => recipe.professionId === professionId,
+    );
+  }
+
+  findRecipe(id: string): Recipe | undefined {
+    return this.recipes.get(id);
   }
 }

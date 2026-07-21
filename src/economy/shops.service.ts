@@ -30,7 +30,8 @@ export interface ShopSaleEvent {
 export interface ShopListingEntry {
   itemId: string;
   name: string;
-  slot: string;
+  type: string;
+  slot: string | undefined;
   price: number;
   attackBonus: number;
   defenseBonus: number;
@@ -67,6 +68,7 @@ export class ShopsService {
       .map((item) => ({
         itemId: item.id,
         name: item.name,
+        type: item.type,
         slot: item.slot,
         price: item.price,
         attackBonus: item.attackBonus,
