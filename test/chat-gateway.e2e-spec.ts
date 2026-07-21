@@ -119,6 +119,15 @@ describe('Chat gateway (e2e)', () => {
     return { userId: body.id, username, sidCookie };
   }
 
+  // Resolves once the server has actually finished `handleConnection` and
+  // registered this socket - not just once the client-side transport is up.
+  // `handleConnection` is async (it awaits a DB lookup before adding the
+  // socket to its in-memory connections map), so the client's 'connect'
+  // event can fire before the server considers the socket connected. Racing
+  // ahead and emitting 'chat:send' right after 'connect' can broadcast
+  // before a just-connected recipient is registered, silently dropping the
+  // message. `chat:history` is emitted as the last step of
+  // handleConnection, so waiting for it closes that window.
   function connectSocket(sidCookie: string, origin?: string): Promise<Socket> {
     return new Promise((resolve, reject) => {
       const socket = io(`${baseUrl}/chat`, {
@@ -129,7 +138,7 @@ describe('Chat gateway (e2e)', () => {
         transports: ['websocket'],
         forceNew: true,
       });
-      socket.on('connect', () => resolve(socket));
+      socket.on('chat:history', () => resolve(socket));
       socket.on('connect_error', reject);
     });
   }
