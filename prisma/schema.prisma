@@ -109,6 +109,16 @@ model Character {
   items           ItemInstance[]
   craftingJobs    CraftingJob[]
   questProgress   QuestProgress[]
+  // Derived, not a plain boolean: "currently a sworn duelist" depends on
+  // comparing duelistOathRenounceRequestedAt (if set) against now - see
+  // duel-eligibility.ts's isSwornDuelist(). Nothing sweeps a lapsed
+  // renouncement on a timer; it's finalized lazily the next time this
+  // character touches anything duel-related (M10 design discussion, same
+  // idiom as CraftingJob's lazy resolution).
+  duelistOathSwornAt             DateTime?
+  duelistOathRenounceRequestedAt DateTime?
+  duelsAsAttacker Duel[] @relation("DuelsAsAttacker")
+  duelsAsDefender Duel[] @relation("DuelsAsDefender")
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -307,4 +317,31 @@ model QuestProgress {
   @@unique([characterId, questId])
   @@index([characterId, status])
   @@map("quest_progress")
+}
+
+// M10 design discussion: PvP is opt-in only (the "duelist's oath" on
+// Character above) and location-independent (no persisted "current
+// region" state exists to gate on - see duel-eligibility.ts/duel.service.ts
+// for why). This table holds only the *record* of each resolved duel;
+// the pairwise repeat-attack cooldown is derived entirely from querying
+// it (most recent duel between a given pair), not from a separate stored
+// field.
+model Duel {
+  id                   String    @id @default(uuid())
+  attackerCharacterId  String
+  attackerCharacter    Character @relation("DuelsAsAttacker", fields: [attackerCharacterId], references: [id])
+  defenderCharacterId  String
+  defenderCharacter    Character @relation("DuelsAsDefender", fields: [defenderCharacterId], references: [id])
+  // Always equal to attackerCharacterId, defenderCharacterId, or null for
+  // a draw - not its own relation, since it never references a third
+  // character.
+  winnerCharacterId    String?
+  attackerHpAfter      Int
+  defenderHpAfter      Int
+  goldTransferred      Int       @default(0)
+  createdAt            DateTime  @default(now())
+
+  @@index([attackerCharacterId, createdAt])
+  @@index([defenderCharacterId, createdAt])
+  @@map("duels")
 }
