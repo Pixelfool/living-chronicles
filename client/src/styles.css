@@ -1,0 +1,210 @@
+/* Deliberately minimal: layout and legibility only, no design system. */
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  color: #1a1a1a;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.loading-screen {
+  padding: 2rem;
+}
+
+/* Auth / character creation - outside the frame entirely */
+.auth-page {
+  max-width: 420px;
+  margin: 3rem auto;
+  padding: 0 1rem;
+}
+
+.auth-page__tagline {
+  color: #555;
+  font-style: italic;
+}
+
+.auth-page__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.auth-page__form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.auth-page__error {
+  color: #a33;
+}
+
+.archetype-picker {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.archetype-picker__option {
+  display: block;
+  margin: 0.4rem 0;
+}
+
+/* The permanent frame */
+.frame {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.frame__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: #222;
+  color: #eee;
+}
+
+.status-bar {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.status-bar__name {
+  color: #fff;
+  font-weight: 600;
+}
+
+.threads-badge {
+  color: #999;
+  font-size: 0.9rem;
+}
+
+.frame__body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.frame__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.frame__chat {
+  width: 300px;
+  border-left: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.chat-panel__log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.chat-panel__empty {
+  color: #999;
+  font-style: italic;
+}
+
+.chat-panel__message {
+  margin-bottom: 0.35rem;
+}
+
+.chat-panel__time {
+  color: #999;
+  font-size: 0.8rem;
+}
+
+.chat-panel__error {
+  color: #a33;
+  padding: 0 0.5rem;
+}
+
+.chat-panel__form {
+  display: flex;
+  border-top: 1px solid #ddd;
+}
+
+.chat-panel__form input {
+  flex: 1;
+  border: none;
+  padding: 0.5rem;
+}
+
+/* City Hub */
+.city-hub__arrival {
+  font-style: italic;
+  color: #555;
+}
+
+.city-hub__description {
+  max-width: 60ch;
+}
+
+.city-hub__actions {
+  display: flex;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.city-hub__panel {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.city-hub__panel ul {
+  list-style: none;
+  padding: 0;
+}
+
+.city-hub__panel li {
+  margin: 0.35rem 0;
+}
+
+.city-hub__error {
+  color: #a33;
+}
+
+.city-hub__log {
+  background: #f7f7f7;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+/* An encounter is something that happened to the character, not routine
+   status text - a plain gray box reads the same as everything else on
+   the page, which is exactly what let one get missed. */
+.city-hub__log--encounter {
+  background: #fff6e0;
+  border-left: 4px solid #c98a1f;
+}
+
+/* Character sheet */
+.character-sheet dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 1rem;
+  max-width: 30rem;
+}
+
+.character-sheet dt {
+  font-weight: 600;
+}
