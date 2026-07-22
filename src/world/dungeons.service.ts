@@ -371,7 +371,16 @@ export class DungeonsService {
       beat,
       monster ?? null,
     );
-    const cleared = beatIndex + 1 >= dungeon.beats.length;
+    // Real bug found by playing this: reaching the last beat index used
+    // to be the *only* condition checked here, regardless of whether
+    // outcome.victory was true or false - a player who lost the final
+    // (often boss) fight still had the run marked CLEARED and received
+    // the full clear reward, with the log narrating a defeat in the same
+    // breath. victory is boolean|null (null only for a DISCOVERY beat,
+    // which never fails), so !== false correctly still clears on a win
+    // or a fight-free final beat, only blocking it on an actual loss.
+    const cleared =
+      beatIndex + 1 >= dungeon.beats.length && outcome.victory !== false;
 
     let itemInstanceId: string | null = null;
     if (outcome.lootItemId) {

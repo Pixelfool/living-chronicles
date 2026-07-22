@@ -250,4 +250,63 @@ describe('Dungeons (e2e)', () => {
       .set('x-csrf-token', csrfToken)
       .expect(201);
   });
+
+  it('does not mark a run cleared or grant the reward if the final beat is lost', async () => {
+    // Regression test: `cleared` used to be computed purely from
+    // "is this the last beat index", ignoring outcome.victory entirely -
+    // a player who lost the final (boss) fight still had the run marked
+    // CLEARED and received the full reward, with the log narrating a
+    // defeat in the same breath.
+    const { agent, csrfToken, characterId } = await readyAdventurerAgent();
+
+    // body: 0 makes the character's own damage output too low to
+    // reliably kill a 60 HP boss within the 20-round combat cap (max
+    // theoretical damage over 20 rounds is exactly 60, requiring an
+    // unbroken run of maximum rolls - negligible enough to treat as
+    // deterministic), while a very high HP pool guarantees they survive
+    // the boss's own damage output easily either way. This forces the
+    // beat to resolve as a loss/stalemate (victory: false) without
+    // depending on injecting a seeded rng the HTTP layer has no way to
+    // control.
+    await prisma.character.update({
+      where: { id: characterId },
+      data: { body: 0, hp: 1000, maxHp: 1000 },
+    });
+
+    // Skip straight to the final beat (index 3 of 4) rather than fighting
+    // through the earlier ones - this test is specifically about the
+    // final-beat-loss case, not the whole run.
+    await prisma.dungeonRun.create({
+      data: {
+        characterId,
+        dungeonId: 'old-mill-depths',
+        status: 'IN_PROGRESS',
+        currentBeat: 3,
+      },
+    });
+
+    const beforeGold = (await agent.get('/characters/me').expect(200))
+      .body as { gold: number };
+
+    const res = await agent
+      .post('/world/dungeons/current/advance')
+      .set('x-csrf-token', csrfToken)
+      .expect(201);
+    const body = res.body as { cleared: boolean; beatLog: string[] };
+    expect(body.cleared).toBe(false);
+    expect(body.beatLog.some((line) => line.includes('defeated'))).toBe(
+      false,
+    );
+
+    const run = await prisma.dungeonRun.findFirst({
+      where: { characterId, dungeonId: 'old-mill-depths' },
+      orderBy: { startedAt: 'desc' },
+    });
+    expect(run?.status).toBe('IN_PROGRESS');
+
+    const afterGold = (await agent.get('/characters/me').expect(200)).body as {
+      gold: number;
+    };
+    expect(afterGold.gold).toBe(beforeGold.gold);
+  });
 });

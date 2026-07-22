@@ -42,6 +42,7 @@ export function resolveBeat(
   },
   beat: DungeonBeat,
   monster: {
+    name: string;
     hp: number;
     attack: number;
     defense: number;
@@ -79,7 +80,7 @@ export function resolveBeat(
 
   return {
     kind: beat.kind,
-    log: [...log, ...describeBattle(outcome, 'the dungeon')],
+    log: [...log, ...describeBattle(outcome, monster.name)],
     victory: outcome.victory,
     xpGained,
     newHp,
