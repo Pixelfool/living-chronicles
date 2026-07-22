@@ -8,6 +8,7 @@ import {
   DungeonThreshold,
 } from '../api-types';
 import { useDungeonCurrent, useDungeonList } from '../dungeons/useDungeons';
+import { useSession } from '../session/SessionContext';
 
 const characterQueryKey = ['character', 'me'];
 const dungeonCurrentQueryKey = ['dungeons', 'current'];
@@ -21,8 +22,9 @@ const dungeonCurrentQueryKey = ['dungeons', 'current'];
  */
 export function DungeonPage() {
   const queryClient = useQueryClient();
+  const { character } = useSession();
   const { data: current } = useDungeonCurrent();
-  const { data: dungeons } = useDungeonList();
+  const { data: dungeons } = useDungeonList(character?.currentCityId);
 
   const [log, setLog] = useState<string[] | null>(null);
   const [outcome, setOutcome] = useState<'cleared' | 'retreated' | null>(null);
@@ -85,9 +87,23 @@ export function DungeonPage() {
   // No auto-navigate on cleared/retreated - the player keeps control of
   // when they leave this moment, not yanked back to City Hub the
   // instant it resolves.
+  //
+  // Real bug found by playing this: this branch used to return early
+  // without rendering `log` at all - so the final beat's fight (often
+  // the boss, the most dramatic moment in the whole run) was computed,
+  // stored in state, and then simply discarded the instant `cleared`
+  // became true. The outcome line replaced the fight instead of
+  // following it.
   if (outcome) {
     return (
       <div className="dungeon-page">
+        {log && (
+          <div className="dungeon-page__log">
+            {log.map((line, index) => (
+              <p key={index}>{line}</p>
+            ))}
+          </div>
+        )}
         <p className="dungeon-page__outcome">
           {outcome === 'cleared' ? 'You cleared it.' : 'You retreated, safe.'}
         </p>

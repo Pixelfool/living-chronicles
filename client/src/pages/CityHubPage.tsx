@@ -72,7 +72,7 @@ export function CityHubPage() {
   const [fightLog, setFightLog] = useState<string[] | null>(null);
 
   const { data: monsters } = useMonsters();
-  const { data: dungeons } = useDungeonList();
+  const { data: dungeons } = useDungeonList(character?.currentCityId);
   const { data: dungeonCurrent } = useDungeonCurrent();
   const { data: worldEvent } = useWorldEvent(character?.currentCityId);
 

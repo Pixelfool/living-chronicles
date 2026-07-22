@@ -2,11 +2,22 @@ import { useQuery } from '@tanstack/react-query';
 import { ApiError, apiFetch } from '../api';
 import { DungeonListEntry, DungeonRunStatusView } from '../api-types';
 
-/** Already server-filtered to the character's current city + level. */
-export function useDungeonList() {
+/**
+ * Already server-filtered to the character's current city + level -
+ * GET /world/dungeons takes no cityId param, it's inferred from the
+ * session. Real bug found by playing this: the query key didn't include
+ * cityId either, so after an inline travel (City Hub deliberately never
+ * unmounts for that - Phase 1's whole design), there was nothing to
+ * make this query ever re-run. The list shown was permanently whichever
+ * city happened to be current the first time City Hub mounted. Passing
+ * cityId through into the key is what actually makes traveling
+ * somewhere new produce a fresh fetch.
+ */
+export function useDungeonList(cityId: string | undefined) {
   return useQuery({
-    queryKey: ['dungeons', 'list'],
+    queryKey: ['dungeons', 'list', cityId],
     queryFn: () => apiFetch<DungeonListEntry[]>('GET', '/world/dungeons'),
+    enabled: Boolean(cityId),
   });
 }
 
