@@ -1,10 +1,19 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { apiFetch } from '../api';
-import { FightResult, Region, TravelResult } from '../api-types';
+import {
+  FightResult,
+  Region,
+  TravelResult,
+  WorldEventFightResult,
+  WorldEventSupportResult,
+} from '../api-types';
 import { useMonsters } from '../combat/useMonsters';
+import { useDungeonCurrent, useDungeonList } from '../dungeons/useDungeons';
 import { useSession } from '../session/SessionContext';
 import { useCities, useRoutes } from '../world/useWorldData';
+import { useWorldEvent } from '../world-events/useWorldEvent';
 
 type Panel = 'none' | 'travel' | 'combat';
 
@@ -63,6 +72,9 @@ export function CityHubPage() {
   const [fightLog, setFightLog] = useState<string[] | null>(null);
 
   const { data: monsters } = useMonsters();
+  const { data: dungeons } = useDungeonList();
+  const { data: dungeonCurrent } = useDungeonCurrent();
+  const { data: worldEvent } = useWorldEvent(character?.currentCityId);
 
   // Cancelling any in-flight character fetch before a mutation's onSuccess
   // writes fresh data closes a real race: the periodic refetchInterval
@@ -96,6 +108,36 @@ export function CityHubPage() {
       queryClient.setQueryData(characterQueryKey, result.character);
       setFightLog(appendOutcomeNotes(result.log, result.leveledUp));
       setEncounterLog(null);
+    },
+  });
+
+  const worldEventQueryKey = ['worldEvents', character?.currentCityId];
+
+  const worldEventFightMutation = useMutation({
+    mutationFn: () =>
+      apiFetch<WorldEventFightResult>(
+        'POST',
+        `/world/events/${character?.currentCityId}/fight`,
+      ),
+    onMutate: () => queryClient.cancelQueries({ queryKey: characterQueryKey }),
+    onSuccess: (result) => {
+      queryClient.setQueryData(characterQueryKey, result.character);
+      setFightLog(result.log);
+      setEncounterLog(null);
+      void queryClient.invalidateQueries({ queryKey: worldEventQueryKey });
+    },
+  });
+
+  const worldEventSupportMutation = useMutation({
+    mutationFn: () =>
+      apiFetch<WorldEventSupportResult>(
+        'POST',
+        `/world/events/${character?.currentCityId}/support`,
+      ),
+    onMutate: () => queryClient.cancelQueries({ queryKey: characterQueryKey }),
+    onSuccess: (result) => {
+      queryClient.setQueryData(characterQueryKey, result.character);
+      void queryClient.invalidateQueries({ queryKey: worldEventQueryKey });
     },
   });
 
@@ -156,6 +198,54 @@ export function CityHubPage() {
       <h1>{city?.name ?? 'Somewhere'}</h1>
       <p className="city-hub__description">{city?.description}</p>
 
+      {/*
+        Ambient, never behind a toggle - unlike Travel/Combat (the player
+        choosing to act), a world event is something happening to the
+        place, and M12's design conversation was explicit it should be
+        close to impossible to miss. Same placement in every phase.
+      */}
+      {worldEvent && worldEvent.phase !== 'NONE' && (
+        <div className="city-hub__world-event">
+          <h2>{worldEvent.name}</h2>
+          {worldEvent.phase === 'EMERGING' && <p>{worldEvent.telegraph}</p>}
+          {worldEvent.phase === 'ACTIVE' && (
+            <>
+              <p>{worldEvent.flavor}</p>
+              <div className="city-hub__actions">
+                {worldEvent.responseTypes.includes('FIGHT') && (
+                  <button
+                    disabled={worldEventFightMutation.isPending}
+                    onClick={() => worldEventFightMutation.mutate()}
+                  >
+                    Fight
+                  </button>
+                )}
+                {worldEvent.responseTypes.includes('SUPPORT') && (
+                  <button
+                    disabled={worldEventSupportMutation.isPending}
+                    onClick={() => worldEventSupportMutation.mutate()}
+                  >
+                    Support
+                  </button>
+                )}
+              </div>
+              {(worldEventFightMutation.isError ||
+                worldEventSupportMutation.isError) && (
+                <p className="city-hub__error">
+                  {
+                    (
+                      worldEventFightMutation.error ??
+                      worldEventSupportMutation.error
+                    )?.message
+                  }
+                </p>
+              )}
+            </>
+          )}
+          {worldEvent.phase === 'RESOLVED' && <p>{worldEvent.residue}</p>}
+        </div>
+      )}
+
       <div className="city-hub__actions">
         <button
           onClick={() => setPanel(panel === 'travel' ? 'none' : 'travel')}
@@ -167,6 +257,18 @@ export function CityHubPage() {
         >
           Look for a fight
         </button>
+        {(dungeons ?? []).length > 0 && (
+          <Link to="/dungeon" className="city-hub__action-link">
+            {dungeonCurrent
+              ? `Continue your expedition (${dungeonCurrent.name})`
+              : `Enter ${dungeons![0].name}`}
+          </Link>
+        )}
+        {(dungeons ?? []).length === 0 && dungeonCurrent && (
+          <Link to="/dungeon" className="city-hub__action-link">
+            Continue your expedition ({dungeonCurrent.name})
+          </Link>
+        )}
       </div>
 
       {panel === 'travel' && (

@@ -97,3 +97,69 @@ export interface ChatMessageView {
   body: string;
   createdAt: string;
 }
+
+export interface DungeonListEntry {
+  id: string;
+  name: string;
+  minLevel: number;
+  entryCost: number;
+}
+
+export type PreparednessTier = 'CONFIDENT' | 'STEADY' | 'UNEASY' | 'DESPERATE';
+
+export interface DungeonThreshold {
+  dungeonId: string;
+  name: string;
+  rumor: string;
+  tier: PreparednessTier;
+  flavor: string;
+}
+
+export interface DungeonRunStatusView {
+  dungeonId: string;
+  name: string;
+  status: 'IN_PROGRESS' | 'CLEARED' | 'RETREATED';
+  currentBeat: number;
+  totalBeats: number;
+}
+
+/**
+ * Unlike travel/combat/world-events, enter/advance don't return an
+ * updated character - a real API inconsistency, not a client oversight
+ * (see DungeonPage.tsx). The client refetches ['character', 'me']
+ * instead of writing from the response.
+ */
+export interface DungeonActionResult {
+  dungeonId: string;
+  beatLog: string[];
+  cleared: boolean;
+}
+
+export interface DungeonRetreatResult {
+  dungeonId: string;
+  atBeat: number;
+}
+
+export type WorldEventResponseType = 'FIGHT' | 'SUPPORT';
+
+export type WorldEventView =
+  | { phase: 'NONE' }
+  | { phase: 'EMERGING'; name: string; telegraph: string }
+  | {
+      phase: 'ACTIVE';
+      name: string;
+      mood: 'STRUGGLING' | 'HOLDING';
+      flavor: string;
+      responseTypes: WorldEventResponseType[];
+    }
+  | { phase: 'RESOLVED'; name: string; residue: string; flavor: string };
+
+export interface WorldEventFightResult {
+  victory: boolean;
+  log: string[];
+  character: Character;
+}
+
+export interface WorldEventSupportResult {
+  character: Character;
+}
