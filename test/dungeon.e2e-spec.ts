@@ -285,8 +285,9 @@ describe('Dungeons (e2e)', () => {
       },
     });
 
-    const beforeGold = (await agent.get('/characters/me').expect(200))
-      .body as { gold: number };
+    const beforeGold = (await agent.get('/characters/me').expect(200)).body as {
+      gold: number;
+    };
 
     const res = await agent
       .post('/world/dungeons/current/advance')
@@ -294,9 +295,7 @@ describe('Dungeons (e2e)', () => {
       .expect(201);
     const body = res.body as { cleared: boolean; beatLog: string[] };
     expect(body.cleared).toBe(false);
-    expect(body.beatLog.some((line) => line.includes('defeated'))).toBe(
-      false,
-    );
+    expect(body.beatLog.some((line) => line.includes('defeated'))).toBe(false);
 
     const run = await prisma.dungeonRun.findFirst({
       where: { characterId, dungeonId: 'old-mill-depths' },
