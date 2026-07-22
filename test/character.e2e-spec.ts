@@ -102,4 +102,30 @@ describe('Character (e2e)', () => {
     const { agent } = await registeredAgentWithCsrf();
     await agent.get('/characters/me').expect(404);
   });
+
+  it('accepts accented and non-Latin names, still rejects punctuation or a leading digit', async () => {
+    // One registration, not two - registration is throttled 5/60s per IP
+    // (build-plan-v1.md §3) and a rejected (400) character creation
+    // never actually creates one, so the same account can keep trying
+    // names until one succeeds.
+    const { agent, csrfToken } = await registeredAgentWithCsrf();
+
+    await agent
+      .post('/characters')
+      .set('x-csrf-token', csrfToken)
+      .send({ name: '1NotAName', archetype: 'DUELIST' })
+      .expect(400);
+    await agent
+      .post('/characters')
+      .set('x-csrf-token', csrfToken)
+      .send({ name: 'No!Punctuation', archetype: 'DUELIST' })
+      .expect(400);
+
+    const createRes = await agent
+      .post('/characters')
+      .set('x-csrf-token', csrfToken)
+      .send({ name: `Müller${Date.now()}`, archetype: 'DUELIST' })
+      .expect(201);
+    expect((createRes.body as { name: string }).name).toContain('Müller');
+  });
 });

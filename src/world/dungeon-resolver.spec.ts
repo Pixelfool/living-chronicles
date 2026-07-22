@@ -20,17 +20,53 @@ describe('resolveBeat', () => {
     const outcome = resolveBeat(
       character,
       { kind: 'COMBAT', monsterId: 'rat' },
-      { hp: 1, attack: 0, defense: 0, xpReward: 15, lootTable: [] },
+      {
+        name: 'Sewer Rat',
+        hp: 1,
+        attack: 0,
+        defense: 0,
+        xpReward: 15,
+        lootTable: [],
+      },
     );
     expect(outcome.victory).toBe(true);
     expect(outcome.xpGained).toBe(15);
+  });
+
+  it("describes the fight using the monster's actual name, not a placeholder", () => {
+    // Regression test: this used to hardcode describeBattle(outcome, 'the
+    // dungeon'), producing "You hit the the dungeon" - describeBattle's own
+    // template already prepends "the".
+    const outcome = resolveBeat(
+      character,
+      { kind: 'COMBAT', monsterId: 'rat' },
+      {
+        name: 'Sewer Rat',
+        hp: 1,
+        attack: 0,
+        defense: 0,
+        xpReward: 15,
+        lootTable: [],
+      },
+    );
+    expect(outcome.log.some((line) => line.includes('Sewer Rat'))).toBe(true);
+    expect(outcome.log.some((line) => line.includes('the dungeon'))).toBe(
+      false,
+    );
   });
 
   it('prefixes a BOSS beat log with its authored text', () => {
     const outcome = resolveBeat(
       character,
       { kind: 'BOSS', monsterId: 'thing', text: 'Something bigger moved in.' },
-      { hp: 1, attack: 0, defense: 0, xpReward: 100, lootTable: [] },
+      {
+        name: 'The Millbrook Thing',
+        hp: 1,
+        attack: 0,
+        defense: 0,
+        xpReward: 100,
+        lootTable: [],
+      },
     );
     expect(outcome.log[0]).toBe('Something bigger moved in.');
   });

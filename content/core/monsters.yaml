@@ -38,7 +38,7 @@ monsters:
       - itemId: wolf-fang
         dropChance: 0.4
   - id: millbrook-thing
-    name: The Millbrook Thing
+    name: Millbrook Thing
     hp: 60
     attack: 8
     defense: 3
